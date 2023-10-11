@@ -11,7 +11,7 @@ async function main() {
     "../deployed-histories"
   );
 
-  console.log("deploying Authorizer");
+  console.log("deploying Vault");
   try {
     const provider = ethers.provider;
     const network = (await provider.getNetwork()).chainId;
@@ -42,22 +42,42 @@ async function main() {
     const from = await provider.getSigner().getAddress();
 
     console.log("from:", from, "network:", networkName);
-    const factory = await ethers.getContractFactory("Authorizer");
 
-    const ret = await factory.deploy(from);
+    const factory = await ethers.getContractFactory("Vault");
+
+    const authorizer = newFileContents["Authorizer"];
+    const WETH = newFileContents["WETH"];
+
+    const SECOND = 1;
+    const MINUTE = SECOND * 60;
+    const HOUR = MINUTE * 60;
+    const DAY = HOUR * 24;
+    const MONTH = DAY * 30;
+
+    const ret = await factory.deploy(authorizer, WETH, MONTH * 3, MONTH);
     const now = new Date();
     const timestamp = Math.floor(now.getTime() / 1000);
 
-    newFileContents["Authorizer"] = ret.address;
-    historiesFileContents[`Authorizer-${timestamp}`] = ret.address;
+    newFileContents["Vault"] = ret.address;
+    historiesFileContents[`Vault-${timestamp}`] = ret.address;
+
+    console.log("contract addr:", ret.address);
+
+    const feeCollector = await ret.getProtocolFeesCollector();
+    newFileContents["ProtocolFeesCollector"] = feeCollector;
+    historiesFileContents[`ProtocolFeesCollector-${timestamp}`] = feeCollector;
+
+    const helperFactory = await ethers.getContractFactory("BalancerHelpers");
+    const helpers = await helperFactory.deploy(ret.address);
+
+    newFileContents["BalancerHelpers"] = helpers.address;
+    historiesFileContents[`BalancerHelpers-${timestamp}`] = helpers.address;
 
     fs.writeFileSync(filePath, JSON.stringify(newFileContents, null, 2));
     fs.writeFileSync(
       historiesFilePath,
       JSON.stringify(historiesFileContents, null, 2)
     );
-
-    console.log("contract addr:", ret.address);
   } catch (e) {
     console.log(e);
   }
