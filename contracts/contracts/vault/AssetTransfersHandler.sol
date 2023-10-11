@@ -78,15 +78,6 @@ abstract contract AssetTransfersHandler is AssetHelpers {
             }
 
             if (amount > 0) {
-                uint256 currentAllowance = token.allowance(
-                    sender,
-                    address(this)
-                );
-
-                if (currentAllowance < amount) {
-                    token.approve(address(this), amount);
-                }
-
                 token.safeTransferFrom(sender, address(this), amount);
             }
         }
