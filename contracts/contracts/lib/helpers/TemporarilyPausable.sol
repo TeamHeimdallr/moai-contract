@@ -37,7 +37,7 @@ abstract contract TemporarilyPausable is ITemporarilyPausable {
     // The Pause Window and Buffer Period are timestamp-based: they should not be relied upon for sub-minute accuracy.
     // solhint-disable not-rely-on-time
 
-    uint256 private constant _MAX_PAUSE_WINDOW_DURATION = 365 days;
+    uint256 private constant _MAX_PAUSE_WINDOW_DURATION = 90 days;
     uint256 private constant _MAX_BUFFER_PERIOD_DURATION = 30 days;
 
     uint256 private immutable _pauseWindowEndTime;
