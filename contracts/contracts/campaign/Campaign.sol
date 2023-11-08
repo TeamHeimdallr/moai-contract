@@ -57,6 +57,14 @@ contract Campaign {
         _;
     }
 
+    modifier onlyRootLiquidityAdmin() {
+        require(
+            msg.sender == rootLiquidityAdmin,
+            "Only rootLiquidityAdmin can do"
+        );
+        _;
+    }
+
     event SwapRootToXrp(uint amountRootIn, uint amountXrpOut);
 
     function _convertERC20sToAssets(
@@ -201,8 +209,61 @@ contract Campaign {
         _farm(amountBPT / 2);
     }
 
-    // TODO
-    function claim() external {}
+    function claim() external {
+        Farm storage farm = farms[msg.sender];
+        _accrue(farm);
+        require(farm.unclaimedRewards > 0, "Campaign: No rewards to claim");
+
+        _exitPool(farm.unclaimedRewards, 0, msg.sender); // 0 = ROOT Token Index
+
+        farm.unclaimedRewards = 0;
+    }
+
+    function withdraw(uint amount) external {
+        uint amountToBeFreed = _unfarm(amount);
+
+        // user
+        _exitPool(amount, 1, msg.sender); // 1 = XRP Token Index
+
+        // freed supported root // TODO: manage not freed BPT amount (2years lock-up)
+        if (amountToBeFreed > 0) {
+            _exitPool(amountToBeFreed, 0, address(this)); // 0 = ROOT Token Index
+        }
+    }
+
+    function _exitPool(
+        uint exitBPTAmount,
+        uint exitAssetIndex,
+        address recipient
+    ) internal {
+        IAsset[] memory exitAsset = new IAsset[](2);
+        exitAsset[0] = IAsset(ROOT_TOKEN_ADDR);
+        exitAsset[1] = IAsset(XRP_TOKEN_ADDR);
+
+        uint[] memory exitAmountsOut = new uint[](2);
+        exitAmountsOut[0] = 0;
+        exitAmountsOut[1] = 0;
+
+        bytes memory userData = abi.encode(
+            WeightedPoolUserData.ExitKind.EXACT_BPT_IN_FOR_ONE_TOKEN_OUT,
+            exitBPTAmount,
+            exitAssetIndex
+        );
+
+        IVault.ExitPoolRequest memory request = IVault.ExitPoolRequest({
+            assets: exitAsset,
+            minAmountsOut: exitAmountsOut,
+            userData: userData,
+            toInternalBalance: false
+        });
+
+        IVault(MOAI_VAULT_ADDR).exitPool(
+            MOAI_POOL_ID,
+            address(this),
+            payable(recipient),
+            request
+        );
+    }
 
     // Support $ROOT liquidity
     function supportLiquidity(uint amount) external {
@@ -210,8 +271,14 @@ contract Campaign {
         liquiditySupport += amount;
     }
 
-    // TODO
-    // function takebackSupport(uint amount) external;
+    function takebackSupport(uint amount) external onlyRootLiquidityAdmin {
+        require(
+            liquiditySupport >= amount,
+            "Campaign: Not enough supported liquidity to take back"
+        );
+        IERC20(ROOT_TOKEN_ADDR).transfer(msg.sender, amount);
+        liquiditySupport -= amount;
+    }
 
     /*
         Farm Part
