@@ -51,6 +51,9 @@ contract Comapaign {
 
     /*
         Campaign Part
+            - interact with users and Moai Finance contracts
+            - Not directly interact with farm variables
+        Campaign Participation Scenario
             1. Users add liquidity through this part
             2-A. If there are $ROOT, swap all into $XRP via Moai Finance
             2-B. Provide $XRP-$ROOT liquidity and all the $ROOTs are from Futureverse
