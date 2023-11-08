@@ -1,22 +1,27 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.7.1;
+pragma experimental ABIEncoderV2;
 
-import "../lib/openzeppelin/IERC20.sol";
-import "../vault/interfaces/IVault.sol";
+import "@balancer-labs/v2-interfaces/contracts/vault/IVault.sol";
+import "@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
+import "@balancer-labs/v2-interfaces/contracts/pool-weighted/WeightedPoolUserData.sol";
+import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
 
-contract Comapaign {
+contract Campaign {
+    using FixedPoint for uint256;
+
     address public constant ROOT_TOKEN_ADDR =
-        0x0000000000000000000000000000000000000000;
+        0xcCcCCccC00000001000000000000000000000000;
     address public constant XRP_TOKEN_ADDR =
-        0x0000000000000000000000000000000000000000;
+        0xCCCCcCCc00000002000000000000000000000000;
     address public constant MOAI_VAULT_ADDR =
-        0x0000000000000000000000000000000000000000;
-    address public constant MOAI_POOL_ADDR =
-        0x0000000000000000000000000000000000000000;
+        0x6548DEA2fB59143215E54595D0157B79aac1335e;
     address public constant XRP_ROOT_BPT_ADDR =
-        0x0000000000000000000000000000000000000000;
-    string public constant MOAI_POOL_ID =
-        "0x000000000000000000000000000000000000000000000a01012020";
+        0x291AF6E1b841cAD6e3DCD66f2AA0790a007578AD;
+    bytes32 public constant MOAI_POOL_ID =
+        bytes32(
+            0x291af6e1b841cad6e3dcd66f2aa0790a007578ad000200000000000000000000
+        );
 
     // Configurations
     uint public apr = 70000; // 100% = 1000000, 1e6
@@ -52,6 +57,17 @@ contract Comapaign {
         _;
     }
 
+    event SwapRootToXrp(uint amountRootIn, uint amountXrpOut);
+
+    function _convertERC20sToAssets(
+        IERC20[] memory tokens
+    ) internal pure returns (IAsset[] memory assets) {
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            assets := tokens
+        }
+    }
+
     /*
         Campaign Part
             - interact with users and Moai Finance contracts
@@ -65,30 +81,122 @@ contract Comapaign {
     */
 
     function participate(uint amountXrp, uint amountRootIn) external {
-        IERC20(XRP_TOKEN_ADDR).transferFrom(
-            msg.sender,
-            address(this),
-            amountXrp
+        require(
+            amountXrp > 0 || amountRootIn > 0,
+            "Campaign: No amount to participate"
         );
+
+        if (amountXrp > 0) {
+            IERC20(XRP_TOKEN_ADDR).transferFrom(
+                msg.sender,
+                address(this),
+                amountXrp
+            );
+        }
+
         if (amountRootIn > 0) {
             IERC20(ROOT_TOKEN_ADDR).transferFrom(
                 msg.sender,
                 address(this),
                 amountRootIn
             );
-            // TODO : Swap all $ROOT to $XRP
-            // amountXrp += IVault(MOAI_VAULT_ADDR).swap();
+
+            IERC20(ROOT_TOKEN_ADDR).approve(MOAI_VAULT_ADDR, amountRootIn);
+
+            IVault.SingleSwap memory singleSwap = IVault.SingleSwap({
+                poolId: MOAI_POOL_ID,
+                kind: IVault.SwapKind.GIVEN_IN,
+                assetIn: IAsset(ROOT_TOKEN_ADDR),
+                assetOut: IAsset(XRP_TOKEN_ADDR),
+                amount: amountRootIn,
+                userData: new bytes(0)
+            });
+
+            IVault.FundManagement memory funds = IVault.FundManagement({
+                sender: address(this),
+                fromInternalBalance: false,
+                recipient: payable(address(this)),
+                toInternalBalance: false
+            });
+
+            uint xrpOut = IVault(MOAI_VAULT_ADDR).swap(
+                singleSwap,
+                funds,
+                0,
+                2000000000
+            ); // TODO: deadline
+            amountXrp += xrpOut;
+
+            emit SwapRootToXrp(amountRootIn, xrpOut);
         }
 
-        // TODO : Calculate $ROOT amount to be paired by querying the spot price
-        // IVault(MOAI_VAULT_ADDR).getPoolTokens(MOAI_POOL_ID);
-        uint price = 0;
-        uint amountRoot = amountXrp * price;
+        IERC20[] memory poolTokens;
+        uint[] memory poolTokenBalances;
+        uint lastChangeBlock;
+        (poolTokens, poolTokenBalances, lastChangeBlock) = IVault(
+            MOAI_VAULT_ADDR
+        ).getPoolTokens(MOAI_POOL_ID);
 
-        // TODO : JoinPool (add liquidity) and receive LP token
-        // IVault(MOAI_VAULT_ADDR).joinPool(MOAI_POOL_ID, msg.sender, address(this), JoinPoolRequest);
-        liquiditySupport -= amountRoot;
-        uint amountBPT = 0;
+        require(
+            poolTokens.length == 2 && poolTokenBalances.length == 2,
+            "Campaign: The pool should be XRP-ROOT pool"
+        );
+
+        require(
+            poolTokenBalances[0] > 0 && poolTokenBalances[1] > 0,
+            "Campaign: The pool should have liquidity"
+        );
+
+        uint spotPrice = (poolTokens[0] == IERC20(XRP_TOKEN_ADDR))
+            ? poolTokenBalances[1].divDown(poolTokenBalances[0])
+            : poolTokenBalances[0].divDown(poolTokenBalances[1]);
+
+        uint pairedAmountRoot = amountXrp.mulDown(spotPrice);
+
+        require(
+            liquiditySupport >= pairedAmountRoot,
+            "Campaign: Not enough supported ROOT liquidity"
+        );
+
+        IAsset[] memory joinAsset = new IAsset[](2);
+        joinAsset[0] = IAsset(ROOT_TOKEN_ADDR);
+        joinAsset[1] = IAsset(XRP_TOKEN_ADDR);
+
+        uint[] memory joinAmountsIn = new uint[](2);
+        joinAmountsIn[0] = pairedAmountRoot;
+        joinAmountsIn[1] = amountXrp;
+
+        bytes memory userData = abi.encode(
+            WeightedPoolUserData.JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT,
+            joinAmountsIn,
+            0
+        );
+
+        IVault.JoinPoolRequest memory request = IVault.JoinPoolRequest({
+            assets: joinAsset,
+            maxAmountsIn: joinAmountsIn,
+            userData: userData,
+            fromInternalBalance: false
+        });
+
+        IERC20(ROOT_TOKEN_ADDR).approve(MOAI_VAULT_ADDR, pairedAmountRoot);
+        IERC20(XRP_TOKEN_ADDR).approve(MOAI_VAULT_ADDR, amountXrp);
+
+        uint amountBPTBeforeJoin = IERC20(XRP_ROOT_BPT_ADDR).balanceOf(
+            address(this)
+        );
+        IVault(MOAI_VAULT_ADDR).joinPool(
+            MOAI_POOL_ID,
+            address(this),
+            address(this),
+            request
+        );
+        uint amountBPTAfterJoin = IERC20(XRP_ROOT_BPT_ADDR).balanceOf(
+            address(this)
+        );
+        liquiditySupport -= pairedAmountRoot;
+
+        uint amountBPT = amountBPTAfterJoin - amountBPTBeforeJoin;
 
         _farm(amountBPT / 2);
     }
