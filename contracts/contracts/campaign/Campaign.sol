@@ -20,7 +20,11 @@ contract Comapaign {
 
     // Configurations
     uint public apr = 70000; // 100% = 1000000, 1e6
+    // User can't withdraw its deposit before 'userLockupPeriod' has passed since its last deposit
     uint public userLockupPeriod = 12 hours;
+    // If a deposit is locked up more than 'periodToLockupLPSupport',
+    //  the supported liquidity by Futureverse becomes locked up for 2 years
+    //  The locked up BPT isn't freed when the user withdraw from this campaign
     uint public periodToLockupLPSupport = 1 weeks; // TODO : changeable or not?
     uint public rewardStartTime = type(uint256).max - 1;
     uint public rewardEndTime = type(uint256).max;
@@ -108,6 +112,8 @@ contract Comapaign {
         if (farm.amountFarmed == farm.amountLocked) {
             farm.depositedTime = block.timestamp;
         } else {
+            // If there is a farmed amount whose paired LP support is not locked up,
+            //  its new depositTime is an internally dividing point in inversely proportional to deposited amounts
             farm.depositedTime +=
                 ((block.timestamp - farm.depositedTime) * amount) /
                 (farm.amountFarmed + amount);
@@ -115,6 +121,7 @@ contract Comapaign {
         farm.amountFarmed += amount;
     }
 
+    // Campaign part should repay 'amountToBeFreed' of BPT and give back $ROOT to Futureverse's LP support pool
     function _unfarm(uint amount) internal returns (uint amountToBeFreed) {
         require(amount != 0, "Unfarmed amount should not be zero");
         Farm storage farm = farms[msg.sender];
