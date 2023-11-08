@@ -19,7 +19,6 @@ contract Comapaign {
         "0x000000000000000000000000000000000000000000000a01012020";
 
     // Configurations
-    // TODO : apr should not be changed for using current farming cap logic
     uint public apr = 70000; // 100% = 1000000, 1e6
     // User can't withdraw its deposit before 'userLockupPeriod' has passed since its last deposit
     uint public userLockupPeriod = 12 hours;
@@ -215,6 +214,8 @@ contract Comapaign {
 
     function changeApr(uint newApr) external onlyRewardAdmin {
         apr = newApr;
+        rewardPool = (rewardPool * newApr) / apr;
+        rewardToBePaid = (rewardToBePaid * newApr) / apr;
     }
 
     function changeUserLockupPeriod(
