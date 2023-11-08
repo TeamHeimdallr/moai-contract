@@ -13,38 +13,60 @@ contract Comapaign {
     string public MOAI_POOL_ID =
         "0x000000000000000000000000000000000000000000000a01012020";
 
-    //
+    uint public APR = 70000; // 100% = 1000000
+    address rewardAdmin = 0x0000000000000000000000000000000000000000; // Moai Finance
+    address rootLiquidityAdmin = 0x0000000000000000000000000000000000000000; // Futureverse
+
     uint liquiditySupport = 0;
-    mapping(address => uint256) public lpShares;
+    uint lockedLiquidity = 0;
 
-    // Farm variables
-    uint256 rewardPerLiquidity;
-    uint112 rewardRemaining;
-    uint112 liquidityFarmed;
-    uint32 endTime;
-    uint32 lastRewardTime;
+    uint rewardStartTime = 0;
+    uint rewardEndTime = 0;
 
-    mapping(address => uint256) public rewardPerLiquidityLast;
-    mapping(address => uint112) public farms;
+    struct Farm {
+        uint amountFarmed;
+        uint amountLocked; // TODO : rename this. The amount of BPT whose paired BPT of Futureverse was locked
+        uint unclaimedRewards;
+        uint32 lastRewardTime;
+        uint32 depositiedTime;
+    }
+
+    mapping(address => Farm) public farms;
+
+    modifier onlyRewardAdmin() {
+        require(msg.sender == rewardAdmin, "Only rewardAdmin can do");
+        _;
+    }
 
     /*
         Campaign Part
             1. Users add liquidity through this part
-            2-A. (Only XRP deposit) Provide $XRP-$ROOT liquidity and all the $ROOTs are from Futureverse
+            2-A. If there are $ROOT, swap all into $XRP via Moai Finance
+            2-B. Provide $XRP-$ROOT liquidity and all the $ROOTs are from Futureverse
                 Note) The half of LP tokens should belong to Futureverse
-            2-B. (XRP, ROOT together) Provide liquidity and then provide the same dollar value amount of $ROOT from Futureverse
-                Note) The second liquidity provision is independent of the user
             3. Farm users' LP tokens
     */
 
-    // Add liquidity with supported $ROOT and automatically farm
-    function depositOnlyXRP(uint amount) external returns (bool) {
-        IERC20(XRP_TOKEN_ADDR).transferFrom(msg.sender, address(this), amount);
+    function participate(uint amountXrp, uint amountRootIn) external {
+        IERC20(XRP_TOKEN_ADDR).transferFrom(
+            msg.sender,
+            address(this),
+            amountXrp
+        );
+        if (amountRootIn > 0) {
+            IERC20(ROOT_TOKEN_ADDR).transferFrom(
+                msg.sender,
+                address(this),
+                amountRootIn
+            );
+            // TODO : Swap all $ROOT to $XRP
+            // amountXrp += IVault(MOAI_VAULT_ADDR).swap();
+        }
 
         // TODO : Calculate $ROOT amount to be paired by querying the spot price
         // IVault(MOAI_VAULT_ADDR).getPoolTokens(MOAI_POOL_ID);
         uint price = 0;
-        uint amountRoot = amount * price;
+        uint amountRoot = amountXrp * price;
 
         // TODO : JoinPool (add liquidity) and receive LP token
         // IVault(MOAI_VAULT_ADDR).joinPool(MOAI_POOL_ID, msg.sender, address(this), JoinPoolRequest);
@@ -54,36 +76,11 @@ contract Comapaign {
         _farm(amountBPT / 2);
     }
 
-    // Add liquidity and then add liquidity independently with supported $ROOT
-    function addLiquidity(
-        uint amountXRP,
-        uint amountRoot
-    ) external returns (bool) {
-        IERC20(XRP_TOKEN_ADDR).transferFrom(
-            msg.sender,
-            address(this),
-            amountXRP
-        );
-        IERC20(ROOT_TOKEN_ADDR).transferFrom(
-            msg.sender,
-            address(this),
-            amountRoot
-        );
-
-        // TODO : JoinPool (add liquidity) and receive LP token
-        uint amountBPT = 0;
-
-        _farm(amountBPT);
-
-        // TODO : Calculate $ROOT amount to be paired by querying the spot price
-        uint price = 0;
-        uint amountRootCalculated = amountXRP * price;
-
-        // TODO : JoinPool (add liquidity) only with $ROOT and do not farm
-    }
+    // TODO
+    function claim() external {}
 
     // Support $ROOT liquidity
-    function supportLiquidity(uint amount) external returns (bool) {
+    function supportLiquidity(uint amount) external {
         IERC20(ROOT_TOKEN_ADDR).transferFrom(msg.sender, address(this), amount);
         liquiditySupport += amount;
     }
@@ -92,10 +89,31 @@ contract Comapaign {
         Farm Part
     */
 
-    // Provide farm reward with $ROOT
-    // TODO : what if others create farm maliciously?
-    function createFarm() external {}
-
     // Farm LP tokens for rewards
-    function _farm(uint amount) internal returns (bool) {}
+    function _farm(uint amount) internal returns (bool) {
+        Farm storage farm = farms[msg.sender];
+    }
+
+    function _accrue(Farm storage farm) internal returns (uint) {}
+
+    // Provide farm reward with $XRP-$ROOT BPT
+    function provideRewards(uint amount) external {
+        IERC20(XRP_ROOT_BPT_ADDR).transferFrom(
+            msg.sender,
+            address(this),
+            amount
+        );
+    }
+
+    function withdrawRewards(uint amount) external onlyRewardAdmin {
+        IERC20(XRP_ROOT_BPT_ADDR).transfer(msg.sender, amount);
+    }
+
+    function changeRewardAdmin(address newAdmin) external onlyRewardAdmin {
+        rewardAdmin = newAdmin;
+    }
+
+    function changeAPR(uint newAPR) external onlyRewardAdmin {
+        APR = newAPR;
+    }
 }
