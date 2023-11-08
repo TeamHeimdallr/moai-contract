@@ -101,6 +101,9 @@ contract Comapaign {
 
     /*
         Farm Part
+            - manage farmed BPT and rewards
+            - not directly interacting with users
+            - not directly interacting with Moai Finance contracts
     */
 
     // Farm LP tokens for rewards
