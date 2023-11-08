@@ -214,7 +214,7 @@ contract Comapaign {
         uint newEndTime
     ) external onlyRewardAdmin {
         require(
-            rewardStartTime < rewardEndTime,
+            newStartTime < newEndTime,
             "new start time should be ealier than new end time"
         );
         rewardStartTime = newStartTime;
