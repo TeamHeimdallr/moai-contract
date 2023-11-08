@@ -19,6 +19,7 @@ contract Comapaign {
         "0x000000000000000000000000000000000000000000000a01012020";
 
     // Configurations
+    // TODO : apr should not be changed for using current farming cap logic
     uint public apr = 70000; // 100% = 1000000, 1e6
     // User can't withdraw its deposit before 'userLockupPeriod' has passed since its last deposit
     uint public userLockupPeriod = 12 hours;
@@ -31,8 +32,11 @@ contract Comapaign {
     address rewardAdmin = 0x0000000000000000000000000000000000000000; // Moai Finance
     address rootLiquidityAdmin = 0x0000000000000000000000000000000000000000; // Futureverse
 
-    uint liquiditySupport = 0;
-    uint lockedLiquidity = 0;
+    uint liquiditySupport;
+    uint lockedLiquidity;
+
+    uint rewardPool;
+    uint rewardToBePaid;
 
     struct Farm {
         uint amountFarmed;
@@ -110,7 +114,6 @@ contract Comapaign {
     */
 
     // Farm LP tokens for rewards
-    // TODO : farming cap
     function _farm(uint amount) internal {
         require(amount != 0, "Farmed amount should not be zero");
         Farm storage farm = farms[msg.sender];
@@ -125,6 +128,10 @@ contract Comapaign {
                 (farm.amountFarmed + amount);
         }
         farm.amountFarmed += amount;
+        rewardToBePaid +=
+            (((amount * apr) / 1e6) * (rewardEndTime - block.timestamp)) /
+            365 days;
+        require(rewardPool >= rewardToBePaid, "Farming cap is full");
     }
 
     // Campaign part should repay 'amountToBeFreed' of BPT and give back $ROOT to Futureverse's LP support pool
@@ -148,6 +155,9 @@ contract Comapaign {
             amountToBeFreed = 0;
             farm.amountLocked -= amount;
         }
+        rewardToBePaid -=
+            (((amount * apr) / 1e6) * (rewardEndTime - block.timestamp)) /
+            365 days;
     }
 
     function _returnAndClearRewardAmount() internal returns (uint amount) {
@@ -162,19 +172,20 @@ contract Comapaign {
             block.timestamp > rewardStartTime &&
             farm.lastRewardTime < rewardEndTime
         ) {
-            farm.unclaimedRewards +=
-                (((farm.amountFarmed * apr) / 1e6) *
-                    ((
-                        block.timestamp < rewardEndTime
-                            ? block.timestamp
-                            : rewardEndTime
-                    ) -
-                        (
-                            farm.lastRewardTime > rewardStartTime
-                                ? farm.lastRewardTime
-                                : rewardStartTime
-                        ))) /
-                365 days;
+            uint reward = (((farm.amountFarmed * apr) / 1e6) *
+                ((
+                    block.timestamp < rewardEndTime
+                        ? block.timestamp
+                        : rewardEndTime
+                ) -
+                    (
+                        farm.lastRewardTime > rewardStartTime
+                            ? farm.lastRewardTime
+                            : rewardStartTime
+                    ))) / 365 days;
+            farm.unclaimedRewards += reward;
+            rewardToBePaid -= reward;
+            rewardPool -= reward;
             farm.lastRewardTime = block.timestamp;
         }
         if (block.timestamp - farm.depositedTime > periodToLockupLPSupport) {
@@ -189,9 +200,12 @@ contract Comapaign {
             address(this),
             amount
         );
+        rewardPool += amount;
     }
 
     function withdrawRewards(uint amount) external onlyRewardAdmin {
+        require(rewardPool >= amount, "Not enough reward pool to withdraw");
+        rewardPool -= amount;
         IERC20(XRP_ROOT_BPT_ADDR).transfer(msg.sender, amount);
     }
 
