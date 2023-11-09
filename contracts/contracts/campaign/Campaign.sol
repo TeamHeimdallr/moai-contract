@@ -67,16 +67,7 @@ contract Campaign {
 
     event SwapRootToXrp(uint amountRootIn, uint amountXrpOut);
 
-    function _convertERC20sToAssets(
-        IERC20[] memory tokens
-    ) internal pure returns (IAsset[] memory assets) {
-        // solhint-disable-next-line no-inline-assembly
-        assembly {
-            assets := tokens
-        }
-    }
-
-    /*
+ß    /*
         Campaign Part
             - interact with users and Moai Finance contracts
             - Not directly interact with farm variables
@@ -140,8 +131,8 @@ contract Campaign {
 
         IERC20[] memory poolTokens;
         uint[] memory poolTokenBalances;
-        uint lastChangeBlock;
-        (poolTokens, poolTokenBalances, lastChangeBlock) = IVault(
+        uint _lastChangeBlock;
+        (poolTokens, poolTokenBalances, _lastChangeBlock) = IVault(
             MOAI_VAULT_ADDR
         ).getPoolTokens(MOAI_POOL_ID);
 
