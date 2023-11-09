@@ -201,13 +201,10 @@ contract Campaign {
     }
 
     function claim() external {
-        Farm storage farm = farms[msg.sender];
-        _accrue(farm);
-        require(farm.unclaimedRewards > 0, "Campaign: No rewards to claim");
+        uint rewardAmount = _returnAndClearRewardAmount();
+        require(rewardAmount > 0, "Campaign: No rewards to claim");
+        _exitPool(rewardAmount, 0, msg.sender); // 0 = ROOT Token Index
 
-        _exitPool(farm.unclaimedRewards, 0, msg.sender); // 0 = ROOT Token Index
-
-        farm.unclaimedRewards = 0;
     }
 
     function withdraw(uint amount) external {
