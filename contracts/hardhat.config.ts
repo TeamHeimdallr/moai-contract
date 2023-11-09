@@ -2,6 +2,7 @@ import { HardhatUserConfig } from "hardhat/config";
 import "hardhat-deploy";
 import "@nomiclabs/hardhat-ethers";
 import "@nomiclabs/hardhat-waffle";
+import "@nomicfoundation/hardhat-foundry";
 import { config as dotenvConfig } from "dotenv";
 import { resolve } from "path";
 
