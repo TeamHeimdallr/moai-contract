@@ -43,7 +43,7 @@ contract Campaign {
     uint rewardToBePaid;
 
     constructor() {
-        rwardAdmin = msg.sender;
+        rewardAdmin = msg.sender;
         rootLiquidityAdmin = msg.sender;
     }
 
@@ -72,7 +72,7 @@ contract Campaign {
 
     event SwapRootToXrp(uint amountRootIn, uint amountXrpOut);
 
-ß    /*
+    /*
         Campaign Part
             - interact with users and Moai Finance contracts
             - Not directly interact with farm variables
@@ -209,7 +209,6 @@ contract Campaign {
         uint rewardAmount = _returnAndClearRewardAmount();
         require(rewardAmount > 0, "Campaign: No rewards to claim");
         _exitPool(rewardAmount, 0, msg.sender); // 0 = ROOT Token Index
-
     }
 
     function withdraw(uint amount) external {
@@ -380,7 +379,9 @@ contract Campaign {
         rewardAdmin = newAdmin;
     }
 
-    function changeRootLiquidityAdmin(address newAdmin) external onlyRootLiquidityAdmin {
+    function changeRootLiquidityAdmin(
+        address newAdmin
+    ) external onlyRootLiquidityAdmin {
         rootLiquidityAdmin = newAdmin;
     }
 
