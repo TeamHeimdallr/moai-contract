@@ -33,14 +33,19 @@ contract Campaign {
     uint public periodToLockupLPSupport = 1 weeks; // TODO : changeable or not?
     uint public rewardStartTime = type(uint256).max - 1;
     uint public rewardEndTime = type(uint256).max;
-    address rewardAdmin = 0x0000000000000000000000000000000000000000; // Moai Finance
-    address rootLiquidityAdmin = 0x0000000000000000000000000000000000000000; // Futureverse
+    address rewardAdmin; // Moai Finance
+    address rootLiquidityAdmin; // Futureverse
 
     uint liquiditySupport;
     uint lockedLiquidity;
 
     uint rewardPool;
     uint rewardToBePaid;
+
+    constructor() {
+        rwardAdmin = msg.sender;
+        rootLiquidityAdmin = msg.sender;
+    }
 
     struct Farm {
         uint amountFarmed;
@@ -373,6 +378,10 @@ contract Campaign {
 
     function changeRewardAdmin(address newAdmin) external onlyRewardAdmin {
         rewardAdmin = newAdmin;
+    }
+
+    function changeRootLiquidityAdmin(address newAdmin) external onlyRootLiquidityAdmin {
+        rootLiquidityAdmin = newAdmin;
     }
 
     function changeApr(uint newApr) external onlyRewardAdmin {
