@@ -76,46 +76,70 @@ contract Campaign {
         _;
     }
 
-    event SwapRootToXrp(uint amountRootIn, uint amountXrpOut);
+    event SwapRootToXrp(
+        address indexed sender,
+        uint amountRootIn,
+        uint amountXrpOut
+    );
     event Participate(
+        address indexed participant,
         uint amountXrpIn,
         uint amountRootIn,
         uint amountXrpForJoin,
         uint amountPairedRootForJoin,
         uint remainedRootLiquidtySupport
     );
-    event JoinPool(uint amountXrp, uint amountRoot, uint amountBPT);
-    event ExitPool(uint amountBPT, uint exitAssetIndex, address recipient);
-    event Claim(address claimer, uint amountRoot);
+    event JoinPool(
+        address indexed sender,
+        uint amountXrp,
+        uint amountRoot,
+        uint amountBPT
+    );
+    event ExitPool(
+        address indexed recipient,
+        uint amountBPT,
+        uint exitAssetIndex
+    );
+    event Claim(address indexed claimer, uint amountRoot);
     event Farmed(
+        address indexed sender,
         uint amountFarmedBPTIn,
         uint amountFarmedBPT,
         uint depositedTime,
         uint totalRewardToBePaid
     );
     event UnFarmed(
+        address indexed sender,
         uint amountFarmedBPTOut,
         uint amountFarmedBPT,
         uint amountLocked,
         uint totalRewardToBePaid
     );
     event SupportLiquidity(
-        address sender,
+        address indexed sender,
         uint amountRoot,
         uint liquiditySupport
     );
     event TakebackLiquidity(
-        address sender,
+        address indexed sender,
         uint amountRoot,
         uint liquiditySupport
     );
     event WithdrawLiquidityAsBPTAfterLockup(
-        address sender,
+        address indexed sender,
         uint amountBPT,
         uint lockedLiquidity
     );
-    event ProvideRewards(address sender, uint amountBPTIn, uint rewardPool);
-    event WithdrawRewards(address sender, uint amountBPTOut, uint rewardPool);
+    event ProvideRewards(
+        address indexed sender,
+        uint amountBPTIn,
+        uint rewardPool
+    );
+    event WithdrawRewards(
+        address indexed sender,
+        uint amountBPTOut,
+        uint rewardPool
+    );
 
     /*
         Campaign Part
@@ -182,7 +206,7 @@ contract Campaign {
             ); // TODO: deadline
             amountXrp += xrpOut;
 
-            emit SwapRootToXrp(amountRootIn, xrpOut);
+            emit SwapRootToXrp(msg.sender, amountRootIn, xrpOut);
         }
 
         IERC20[] memory poolTokens;
@@ -219,6 +243,7 @@ contract Campaign {
         _farm(amountBPT / 2);
 
         emit Participate(
+            msg.sender,
             amountXrpIn,
             amountRootIn,
             amountXrp,
@@ -305,7 +330,7 @@ contract Campaign {
 
         joinedBPT = amountBPTAfterJoin - amountBPTBeforeJoin;
 
-        emit JoinPool(amountXrp, amountRoot, joinedBPT);
+        emit JoinPool(msg.sender, amountXrp, amountRoot, joinedBPT);
     }
 
     function _exitPool(
@@ -341,7 +366,7 @@ contract Campaign {
             request
         );
 
-        emit ExitPool(exitBPTAmount, exitAssetIndex, recipient);
+        emit ExitPool(recipient, exitBPTAmount, exitAssetIndex);
     }
 
     /*
@@ -372,6 +397,7 @@ contract Campaign {
         require(rewardPool >= rewardToBePaid, "Farming cap is full");
 
         emit Farmed(
+            msg.sender,
             amount,
             farm.amountFarmed,
             farm.depositedTime,
@@ -405,6 +431,7 @@ contract Campaign {
             365 days;
 
         emit UnFarmed(
+            msg.sender,
             amount,
             farm.amountFarmed,
             farm.amountLocked,
