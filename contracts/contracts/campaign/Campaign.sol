@@ -522,7 +522,7 @@ contract Campaign {
             lockedLiquidity >= amount,
             "Campaign: Not enough locked liquidity to withdraw"
         );
-
+        lockedLiquidity -= amount;
         IERC20(XRP_ROOT_BPT_ADDR).transfer(msg.sender, amount);
 
         emit WithdrawLiquidityAsBPTAfterLockup(
