@@ -22,6 +22,8 @@ contract Campaign {
         bytes32(
             0x291af6e1b841cad6e3dcd66f2aa0790a007578ad000200000000000000000000
         );
+    uint private constant ROOT_INDEX = 0;
+    uint private constant XRP_INDEX = 1;
 
     // Configurations
     uint public apr = 70000; // 100% = 1000000, 1e6
@@ -33,6 +35,8 @@ contract Campaign {
     uint public periodToLockupLPSupport = 1 weeks; // TODO : changeable or not?
     uint public rewardStartTime = type(uint256).max - 1;
     uint public rewardEndTime = type(uint256).max;
+    uint public liquiditySupportLockupPeriod = 2 * 365 days; // 2 years
+
     address rewardAdmin; // Moai Finance
     address rootLiquidityAdmin; // Futureverse
 
@@ -45,6 +49,8 @@ contract Campaign {
     constructor() {
         rewardAdmin = msg.sender;
         rootLiquidityAdmin = msg.sender;
+        IERC20(ROOT_TOKEN_ADDR).approve(MOAI_VAULT_ADDR, type(uint256).max);
+        IERC20(XRP_TOKEN_ADDR).approve(MOAI_VAULT_ADDR, type(uint256).max);
     }
 
     struct Farm {
@@ -70,7 +76,70 @@ contract Campaign {
         _;
     }
 
-    event SwapRootToXrp(uint amountRootIn, uint amountXrpOut);
+    event SwapRootToXrp(
+        address indexed sender,
+        uint amountRootIn,
+        uint amountXrpOut
+    );
+    event Participate(
+        address indexed participant,
+        uint amountXrpIn,
+        uint amountRootIn,
+        uint amountXrpForJoin,
+        uint amountPairedRootForJoin,
+        uint remainedRootLiquidtySupport
+    );
+    event JoinPool(
+        address indexed sender,
+        uint amountXrp,
+        uint amountRoot,
+        uint amountBPT
+    );
+    event ExitPool(
+        address indexed recipient,
+        uint amountBPT,
+        uint exitAssetIndex
+    );
+    event Claim(address indexed claimer, uint amountRoot);
+    event Farmed(
+        address indexed sender,
+        uint amountFarmedBPTIn,
+        uint amountFarmedBPT,
+        uint depositedTime,
+        uint totalRewardToBePaid
+    );
+    event UnFarmed(
+        address indexed sender,
+        uint amountFarmedBPTOut,
+        uint amountFarmedBPT,
+        uint amountLocked,
+        uint totalRewardToBePaid
+    );
+    event SupportLiquidity(
+        address indexed sender,
+        uint amountRoot,
+        uint liquiditySupport
+    );
+    event TakebackLiquidity(
+        address indexed sender,
+        uint amountRoot,
+        uint liquiditySupport
+    );
+    event WithdrawLiquidityAsBPTAfterLockup(
+        address indexed sender,
+        uint amountBPT,
+        uint lockedLiquidity
+    );
+    event ProvideRewards(
+        address indexed sender,
+        uint amountBPTIn,
+        uint rewardPool
+    );
+    event WithdrawRewards(
+        address indexed sender,
+        uint amountBPTOut,
+        uint rewardPool
+    );
 
     /*
         Campaign Part
@@ -84,17 +153,25 @@ contract Campaign {
             3. Farm users' LP tokens
     */
 
-    function participate(uint amountXrp, uint amountRootIn) external {
+    function participate(uint amountXrpIn, uint amountRootIn) external {
+        uint amountXrp = amountXrpIn;
+
         require(
-            amountXrp > 0 || amountRootIn > 0,
+            amountXrpIn > 0 || amountRootIn > 0,
             "Campaign: No amount to participate"
         );
 
-        if (amountXrp > 0) {
+        require(
+            block.timestamp >= rewardStartTime &&
+                block.timestamp < rewardEndTime,
+            "Campaign: Not started or already ended"
+        );
+
+        if (amountXrpIn > 0) {
             IERC20(XRP_TOKEN_ADDR).transferFrom(
                 msg.sender,
                 address(this),
-                amountXrp
+                amountXrpIn
             );
         }
 
@@ -104,8 +181,6 @@ contract Campaign {
                 address(this),
                 amountRootIn
             );
-
-            IERC20(ROOT_TOKEN_ADDR).approve(MOAI_VAULT_ADDR, amountRootIn);
 
             IVault.SingleSwap memory singleSwap = IVault.SingleSwap({
                 poolId: MOAI_POOL_ID,
@@ -131,7 +206,7 @@ contract Campaign {
             ); // TODO: deadline
             amountXrp += xrpOut;
 
-            emit SwapRootToXrp(amountRootIn, xrpOut);
+            emit SwapRootToXrp(msg.sender, amountRootIn, xrpOut);
         }
 
         IERC20[] memory poolTokens;
@@ -162,12 +237,69 @@ contract Campaign {
             "Campaign: Not enough supported ROOT liquidity"
         );
 
+        uint amountBPT = _joinPool(pairedAmountRoot, amountXrp);
+        liquiditySupport -= pairedAmountRoot;
+
+        _farm(amountBPT / 2);
+
+        emit Participate(
+            msg.sender,
+            amountXrpIn,
+            amountRootIn,
+            amountXrp,
+            pairedAmountRoot,
+            liquiditySupport
+        );
+    }
+
+    function withdraw(uint amount) external {
+        uint amountToBeFreed = _unfarm(amount);
+
+        // user
+        _exitPool(amount, XRP_INDEX, msg.sender);
+
+        // freed supported root
+        if (amountToBeFreed > 0) {
+            uint beforeRootAmount = IERC20(ROOT_TOKEN_ADDR).balanceOf(
+                address(this)
+            );
+            _exitPool(amountToBeFreed, ROOT_INDEX, address(this));
+            uint afterRootAmount = IERC20(ROOT_TOKEN_ADDR).balanceOf(
+                address(this)
+            );
+            liquiditySupport += (afterRootAmount - beforeRootAmount);
+        }
+    }
+
+    function claim() external {
+        uint rewardAmount = _returnAndClearRewardAmount();
+        require(rewardAmount > 0, "Campaign: No rewards to claim");
+
+        uint beforeRootAmount = IERC20(ROOT_TOKEN_ADDR).balanceOf(msg.sender);
+        _exitPool(rewardAmount, ROOT_INDEX, msg.sender);
+        uint afterRootAmount = IERC20(ROOT_TOKEN_ADDR).balanceOf(msg.sender);
+
+        emit Claim(msg.sender, afterRootAmount - beforeRootAmount);
+    }
+
+    // Support $ROOT liquidity
+    function supportLiquidity(uint amount) external {
+        IERC20(ROOT_TOKEN_ADDR).transferFrom(msg.sender, address(this), amount);
+        liquiditySupport += amount;
+
+        emit SupportLiquidity(msg.sender, amount, liquiditySupport);
+    }
+
+    function _joinPool(
+        uint amountRoot,
+        uint amountXrp
+    ) internal returns (uint joinedBPT) {
         IAsset[] memory joinAsset = new IAsset[](2);
         joinAsset[0] = IAsset(ROOT_TOKEN_ADDR);
         joinAsset[1] = IAsset(XRP_TOKEN_ADDR);
 
         uint[] memory joinAmountsIn = new uint[](2);
-        joinAmountsIn[0] = pairedAmountRoot;
+        joinAmountsIn[0] = amountRoot;
         joinAmountsIn[1] = amountXrp;
 
         bytes memory userData = abi.encode(
@@ -183,9 +315,6 @@ contract Campaign {
             fromInternalBalance: false
         });
 
-        IERC20(ROOT_TOKEN_ADDR).approve(MOAI_VAULT_ADDR, pairedAmountRoot);
-        IERC20(XRP_TOKEN_ADDR).approve(MOAI_VAULT_ADDR, amountXrp);
-
         uint amountBPTBeforeJoin = IERC20(XRP_ROOT_BPT_ADDR).balanceOf(
             address(this)
         );
@@ -198,29 +327,10 @@ contract Campaign {
         uint amountBPTAfterJoin = IERC20(XRP_ROOT_BPT_ADDR).balanceOf(
             address(this)
         );
-        liquiditySupport -= pairedAmountRoot;
 
-        uint amountBPT = amountBPTAfterJoin - amountBPTBeforeJoin;
+        joinedBPT = amountBPTAfterJoin - amountBPTBeforeJoin;
 
-        _farm(amountBPT / 2);
-    }
-
-    function claim() external {
-        uint rewardAmount = _returnAndClearRewardAmount();
-        require(rewardAmount > 0, "Campaign: No rewards to claim");
-        _exitPool(rewardAmount, 0, msg.sender); // 0 = ROOT Token Index
-    }
-
-    function withdraw(uint amount) external {
-        uint amountToBeFreed = _unfarm(amount);
-
-        // user
-        _exitPool(amount, 1, msg.sender); // 1 = XRP Token Index
-
-        // freed supported root // TODO: manage not freed BPT amount (2years lock-up)
-        if (amountToBeFreed > 0) {
-            _exitPool(amountToBeFreed, 0, address(this)); // 0 = ROOT Token Index
-        }
+        emit JoinPool(msg.sender, amountXrp, amountRoot, joinedBPT);
     }
 
     function _exitPool(
@@ -255,21 +365,8 @@ contract Campaign {
             payable(recipient),
             request
         );
-    }
 
-    // Support $ROOT liquidity
-    function supportLiquidity(uint amount) external {
-        IERC20(ROOT_TOKEN_ADDR).transferFrom(msg.sender, address(this), amount);
-        liquiditySupport += amount;
-    }
-
-    function takebackSupport(uint amount) external onlyRootLiquidityAdmin {
-        require(
-            liquiditySupport >= amount,
-            "Campaign: Not enough supported liquidity to take back"
-        );
-        IERC20(ROOT_TOKEN_ADDR).transfer(msg.sender, amount);
-        liquiditySupport -= amount;
+        emit ExitPool(recipient, exitBPTAmount, exitAssetIndex);
     }
 
     /*
@@ -298,6 +395,14 @@ contract Campaign {
             (((amount * apr) / 1e6) * (rewardEndTime - block.timestamp)) /
             365 days;
         require(rewardPool >= rewardToBePaid, "Farming cap is full");
+
+        emit Farmed(
+            msg.sender,
+            amount,
+            farm.amountFarmed,
+            farm.depositedTime,
+            rewardToBePaid
+        );
     }
 
     // Campaign part should repay 'amountToBeFreed' of BPT and give back $ROOT to Futureverse's LP support pool
@@ -324,6 +429,14 @@ contract Campaign {
         rewardToBePaid -=
             (((amount * apr) / 1e6) * (rewardEndTime - block.timestamp)) /
             365 days;
+
+        emit UnFarmed(
+            msg.sender,
+            amount,
+            farm.amountFarmed,
+            farm.amountLocked,
+            rewardToBePaid
+        );
     }
 
     function _returnAndClearRewardAmount() internal returns (uint amount) {
@@ -355,6 +468,7 @@ contract Campaign {
             farm.lastRewardTime = block.timestamp;
         }
         if (block.timestamp - farm.depositedTime > periodToLockupLPSupport) {
+            lockedLiquidity += (farm.amountFarmed - farm.amountLocked);
             farm.amountLocked = farm.amountFarmed;
         }
     }
@@ -367,12 +481,16 @@ contract Campaign {
             amount
         );
         rewardPool += amount;
+
+        emit ProvideRewards(msg.sender, amount, rewardPool);
     }
 
     function withdrawRewards(uint amount) external onlyRewardAdmin {
         require(rewardPool >= amount, "Not enough reward pool to withdraw");
         rewardPool -= amount;
         IERC20(XRP_ROOT_BPT_ADDR).transfer(msg.sender, amount);
+
+        emit WithdrawRewards(msg.sender, amount, rewardPool);
     }
 
     function changeRewardAdmin(address newAdmin) external onlyRewardAdmin {
@@ -386,9 +504,9 @@ contract Campaign {
     }
 
     function changeApr(uint newApr) external onlyRewardAdmin {
-        apr = newApr;
         rewardPool = (rewardPool * newApr) / apr;
         rewardToBePaid = (rewardToBePaid * newApr) / apr;
+        apr = newApr;
     }
 
     function changeUserLockupPeriod(
@@ -407,5 +525,37 @@ contract Campaign {
         );
         rewardStartTime = newStartTime;
         rewardEndTime = newEndTime;
+    }
+
+    function takebackSupport(uint amount) external onlyRootLiquidityAdmin {
+        require(
+            liquiditySupport >= amount,
+            "Campaign: Not enough supported liquidity to take back"
+        );
+        IERC20(ROOT_TOKEN_ADDR).transfer(msg.sender, amount);
+        liquiditySupport -= amount;
+
+        emit TakebackLiquidity(msg.sender, amount, liquiditySupport);
+    }
+
+    function withdrawSupportAfterCampaign(
+        uint amount
+    ) external onlyRootLiquidityAdmin {
+        require(
+            block.timestamp > rewardEndTime + liquiditySupportLockupPeriod,
+            "Campaign: Not able to withdraw liquidity yet"
+        );
+        require(
+            lockedLiquidity >= amount,
+            "Campaign: Not enough locked liquidity to withdraw"
+        );
+        lockedLiquidity -= amount;
+        IERC20(XRP_ROOT_BPT_ADDR).transfer(msg.sender, amount);
+
+        emit WithdrawLiquidityAsBPTAfterLockup(
+            msg.sender,
+            amount,
+            lockedLiquidity
+        );
     }
 }
