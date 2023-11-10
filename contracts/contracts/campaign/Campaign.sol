@@ -441,8 +441,7 @@ contract Campaign {
             farm.lastRewardTime = block.timestamp;
         }
         if (block.timestamp - farm.depositedTime > periodToLockupLPSupport) {
-            lockedLiquidity -= farm.amountLocked;
-            lockedLiquidity += farm.amountFarmed;
+            lockedLiquidity += (farm.amountFarmed - farm.amountLocked);
             farm.amountLocked = farm.amountFarmed;
         }
     }
