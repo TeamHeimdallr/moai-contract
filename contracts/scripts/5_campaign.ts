@@ -44,7 +44,13 @@ async function main() {
     console.log("from:", from, "network:", networkName);
     const factory = await ethers.getContractFactory("Campaign");
 
-    const ret = await factory.deploy();
+    const ret = await factory.deploy(
+      "0xcCcCCccC00000001000000000000000000000000",
+      "0xCCCCcCCc00000002000000000000000000000000",
+      "0x6548DEA2fB59143215E54595D0157B79aac1335e",
+      "0x291af6e1b841cad6e3dcd66f2aa0790a007578ad",
+      "0x291af6e1b841cad6e3dcd66f2aa0790a007578ad000200000000000000000000"
+    );
     const now = new Date();
     const timestamp = Math.floor(now.getTime() / 1000);
 
