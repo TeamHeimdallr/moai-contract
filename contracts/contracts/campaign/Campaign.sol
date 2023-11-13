@@ -10,20 +10,13 @@ import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
 contract Campaign {
     using FixedPoint for uint256;
 
-    address public constant ROOT_TOKEN_ADDR =
-        0xcCcCCccC00000001000000000000000000000000;
-    address public constant XRP_TOKEN_ADDR =
-        0xCCCCcCCc00000002000000000000000000000000;
-    address public constant MOAI_VAULT_ADDR =
-        0x6548DEA2fB59143215E54595D0157B79aac1335e;
-    address public constant XRP_ROOT_BPT_ADDR =
-        0x291AF6E1b841cAD6e3DCD66f2AA0790a007578AD;
-    bytes32 public constant MOAI_POOL_ID =
-        bytes32(
-            0x291af6e1b841cad6e3dcd66f2aa0790a007578ad000200000000000000000000
-        );
-    uint private constant ROOT_INDEX = 0;
-    uint private constant XRP_INDEX = 1;
+    address public ROOT_TOKEN_ADDR;
+    address public XRP_TOKEN_ADDR;
+    address public MOAI_VAULT_ADDR;
+    address public XRP_ROOT_BPT_ADDR;
+    bytes32 public MOAI_POOL_ID;
+    uint public XRP_INDEX;
+    uint public ROOT_INDEX;
 
     // Configurations
     uint public apr = 70000; // 100% = 1000000, 1e6
@@ -46,9 +39,42 @@ contract Campaign {
     uint rewardPool;
     uint rewardToBePaid;
 
-    constructor() {
+    constructor(
+        address rootTokenAddr_,
+        address xrpTokenAddr_,
+        address vaultAddress_,
+        address bptAddr_,
+        bytes32 poolId_
+    ) {
         rewardAdmin = msg.sender;
         rootLiquidityAdmin = msg.sender;
+
+        ROOT_TOKEN_ADDR = rootTokenAddr_;
+        XRP_TOKEN_ADDR = xrpTokenAddr_;
+        MOAI_VAULT_ADDR = vaultAddress_;
+        XRP_ROOT_BPT_ADDR = bptAddr_;
+        MOAI_POOL_ID = poolId_;
+
+        IERC20[] memory poolTokens;
+        uint[] memory poolTokenBalances;
+        uint _lastChangeBlock;
+        (poolTokens, poolTokenBalances, _lastChangeBlock) = IVault(
+            MOAI_VAULT_ADDR
+        ).getPoolTokens(MOAI_POOL_ID);
+
+        require(
+            poolTokens.length == 2,
+            "Campaign: The pool should be two tokens"
+        );
+
+        require(
+            poolTokenBalances[0] > 0 && poolTokenBalances[1] > 0,
+            "Campaign: The pool should have liquidity"
+        );
+
+        XRP_INDEX = (poolTokens[0] == IERC20(XRP_TOKEN_ADDR)) ? 0 : 1;
+        ROOT_INDEX = (XRP_INDEX == 0) ? 1 : 0;
+
         IERC20(ROOT_TOKEN_ADDR).approve(MOAI_VAULT_ADDR, type(uint256).max);
         IERC20(XRP_TOKEN_ADDR).approve(MOAI_VAULT_ADDR, type(uint256).max);
     }
@@ -202,8 +228,8 @@ contract Campaign {
                 singleSwap,
                 funds,
                 0,
-                2000000000
-            ); // TODO: deadline
+                block.timestamp + 1 days
+            );
             amountXrp += xrpOut;
 
             emit SwapRootToXrp(msg.sender, amountRootIn, xrpOut);
@@ -226,10 +252,9 @@ contract Campaign {
             "Campaign: The pool should have liquidity"
         );
 
-        uint spotPrice = (poolTokens[0] == IERC20(XRP_TOKEN_ADDR))
-            ? poolTokenBalances[1].divDown(poolTokenBalances[0])
-            : poolTokenBalances[0].divDown(poolTokenBalances[1]);
-
+        uint spotPrice = poolTokenBalances[ROOT_INDEX].divDown(
+            poolTokenBalances[XRP_INDEX]
+        );
         uint pairedAmountRoot = amountXrp.mulDown(spotPrice);
 
         require(
@@ -295,12 +320,12 @@ contract Campaign {
         uint amountXrp
     ) internal returns (uint joinedBPT) {
         IAsset[] memory joinAsset = new IAsset[](2);
-        joinAsset[0] = IAsset(ROOT_TOKEN_ADDR);
-        joinAsset[1] = IAsset(XRP_TOKEN_ADDR);
+        joinAsset[ROOT_INDEX] = IAsset(ROOT_TOKEN_ADDR);
+        joinAsset[XRP_INDEX] = IAsset(XRP_TOKEN_ADDR);
 
         uint[] memory joinAmountsIn = new uint[](2);
-        joinAmountsIn[0] = amountRoot;
-        joinAmountsIn[1] = amountXrp;
+        joinAmountsIn[ROOT_INDEX] = amountRoot;
+        joinAmountsIn[XRP_INDEX] = amountXrp;
 
         bytes memory userData = abi.encode(
             WeightedPoolUserData.JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT,
@@ -339,12 +364,12 @@ contract Campaign {
         address recipient
     ) internal {
         IAsset[] memory exitAsset = new IAsset[](2);
-        exitAsset[0] = IAsset(ROOT_TOKEN_ADDR);
-        exitAsset[1] = IAsset(XRP_TOKEN_ADDR);
+        exitAsset[ROOT_INDEX] = IAsset(ROOT_TOKEN_ADDR);
+        exitAsset[XRP_INDEX] = IAsset(XRP_TOKEN_ADDR);
 
         uint[] memory exitAmountsOut = new uint[](2);
-        exitAmountsOut[0] = 0;
-        exitAmountsOut[1] = 0;
+        exitAmountsOut[ROOT_INDEX] = 0;
+        exitAmountsOut[XRP_INDEX] = 0;
 
         bytes memory userData = abi.encode(
             WeightedPoolUserData.ExitKind.EXACT_BPT_IN_FOR_ONE_TOKEN_OUT,
@@ -386,9 +411,13 @@ contract Campaign {
         } else {
             // If there is a farmed amount whose paired LP support is not locked up,
             //  its new depositTime is an internally dividing point in inversely proportional to deposited amounts
-            farm.depositedTime +=
-                ((block.timestamp - farm.depositedTime) * amount) /
-                (farm.amountFarmed + amount);
+            farm.depositedTime += (
+                (block.timestamp.sub(farm.depositedTime))
+                    .mulDown(amount)
+                    .divDown(farm.amountFarmed + amount)
+            );
+            // ((block.timestamp - farm.depositedTime) * amount) /
+            // (farm.amountFarmed + amount);
         }
         farm.amountFarmed += amount;
         rewardToBePaid +=
