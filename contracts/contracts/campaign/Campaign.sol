@@ -96,14 +96,14 @@ contract Campaign {
     mapping(address => Farm) public farms;
 
     modifier onlyRewardAdmin() {
-        require(msg.sender == rewardAdmin, "Only rewardAdmin can do");
+        require(msg.sender == rewardAdmin, "Campaign: Only rewardAdmin can do");
         _;
     }
 
     modifier onlyRootLiquidityAdmin() {
         require(
             msg.sender == rootLiquidityAdmin,
-            "Only rootLiquidityAdmin can do"
+            "Campaign: Only rootLiquidityAdmin can do"
         );
         _;
     }
@@ -236,7 +236,7 @@ contract Campaign {
                 0,
                 block.timestamp + 1 days
             );
-            amountXrp += xrpOut;
+            amountXrp = amountXrp.add(xrpOut);
 
             emit SwapRootToXrp(msg.sender, amountRootIn, xrpOut);
         }
@@ -269,7 +269,7 @@ contract Campaign {
         );
 
         uint amountBPT = _joinPool(pairedAmountRoot, amountXrp);
-        liquiditySupport -= pairedAmountRoot;
+        liquiditySupport = liquiditySupport.sub(pairedAmountRoot);
 
         _farm(amountBPT / 2);
 
@@ -298,7 +298,9 @@ contract Campaign {
             uint afterRootAmount = IERC20(ROOT_TOKEN_ADDR).balanceOf(
                 address(this)
             );
-            liquiditySupport += (afterRootAmount - beforeRootAmount);
+            liquiditySupport = liquiditySupport.add(
+                afterRootAmount.sub(beforeRootAmount)
+            );
         }
     }
 
@@ -316,7 +318,7 @@ contract Campaign {
     // Support $ROOT liquidity
     function supportLiquidity(uint amount) external {
         IERC20(ROOT_TOKEN_ADDR).transferFrom(msg.sender, address(this), amount);
-        liquiditySupport += amount;
+        liquiditySupport = liquiditySupport.add(amount);
 
         emit SupportLiquidity(msg.sender, amount, liquiditySupport);
     }
@@ -359,7 +361,7 @@ contract Campaign {
             address(this)
         );
 
-        joinedBPT = amountBPTAfterJoin - amountBPTBeforeJoin;
+        joinedBPT = amountBPTAfterJoin.sub(amountBPTBeforeJoin);
 
         emit JoinPool(msg.sender, amountXrp, amountRoot, joinedBPT);
     }
@@ -417,18 +419,18 @@ contract Campaign {
         } else {
             // If there is a farmed amount whose paired LP support is not locked up,
             //  its new depositTime is an internally dividing point in inversely proportional to deposited amounts
-            farm.depositedTime += (
+            farm.depositedTime = farm.depositedTime.add(
                 (block.timestamp.sub(farm.depositedTime))
+                    .divDown(farm.amountFarmed.add(amount))
                     .mulDown(amount)
-                    .divDown(farm.amountFarmed + amount)
             );
-            // ((block.timestamp - farm.depositedTime) * amount) /
-            // (farm.amountFarmed + amount);
         }
-        farm.amountFarmed += amount;
-        rewardToBePaid +=
-            (((amount * apr) / 1e6) * (rewardEndTime - block.timestamp)) /
-            365 days;
+        farm.amountFarmed = farm.amountFarmed.add(amount);
+        rewardToBePaid = rewardToBePaid.add(
+            apr.divDown(1e6).mulDown(amount).divDown(365 days).mulDown(
+                rewardEndTime.sub(block.timestamp)
+            )
+        );
         require(rewardPool >= rewardToBePaid, "Farming cap is full");
 
         emit Farmed(
@@ -453,17 +455,19 @@ contract Campaign {
             farm.depositedTime + userLockupPeriod < block.timestamp,
             "Lockup period"
         );
-        farm.amountFarmed -= amount;
+        farm.amountFarmed = farm.amountFarmed.sub(amount);
         if (farm.amountPairedBPTLocked < amount) {
-            amountToBeFreed = amount - farm.amountPairedBPTLocked;
+            amountToBeFreed = amount.sub(farm.amountPairedBPTLocked);
             farm.amountPairedBPTLocked = 0;
         } else {
             amountToBeFreed = 0;
-            farm.amountPairedBPTLocked -= amount;
+            farm.amountPairedBPTLocked = farm.amountPairedBPTLocked.sub(amount);
         }
-        rewardToBePaid -=
-            (((amount * apr) / 1e6) * (rewardEndTime - block.timestamp)) /
-            365 days;
+        rewardToBePaid = rewardToBePaid.sub(
+            amount.mulDown(apr.divDown(1e6)).divDown(365 days).mulDown(
+                rewardEndTime.sub(block.timestamp)
+            )
+        );
 
         emit UnFarmed(
             msg.sender,
@@ -486,24 +490,28 @@ contract Campaign {
             block.timestamp > rewardStartTime &&
             farm.lastRewardTime < rewardEndTime
         ) {
-            uint reward = (((farm.amountFarmed * apr) / 1e6) *
-                ((
-                    block.timestamp < rewardEndTime
-                        ? block.timestamp
-                        : rewardEndTime
-                ) -
+            uint reward = farm.amountFarmed.mulDown(apr.divDown(1e6)).mulDown(
+                (
                     (
-                        farm.lastRewardTime > rewardStartTime
-                            ? farm.lastRewardTime
-                            : rewardStartTime
-                    ))) / 365 days;
-            farm.unclaimedRewards += reward;
-            rewardToBePaid -= reward;
-            rewardPool -= reward;
+                        block.timestamp < rewardEndTime
+                            ? block.timestamp
+                            : rewardEndTime
+                    ).sub(
+                            farm.lastRewardTime > rewardStartTime
+                                ? farm.lastRewardTime
+                                : rewardStartTime
+                        )
+                ).divDown(365 days)
+            );
+            farm.unclaimedRewards = farm.unclaimedRewards.add(reward);
+            rewardToBePaid = rewardToBePaid.sub(reward);
+            rewardPool = rewardPool.sub(reward);
             farm.lastRewardTime = block.timestamp;
         }
         if (block.timestamp - farm.depositedTime > periodToLockupLPSupport) {
-            lockedLiquidity += (farm.amountFarmed - farm.amountPairedBPTLocked);
+            lockedLiquidity = lockedLiquidity.add(
+                farm.amountFarmed.sub(farm.amountPairedBPTLocked)
+            );
             farm.amountPairedBPTLocked = farm.amountFarmed;
         }
     }
@@ -515,14 +523,14 @@ contract Campaign {
             address(this),
             amount
         );
-        rewardPool += amount;
+        rewardPool = rewardPool.add(amount);
 
         emit ProvideRewards(msg.sender, amount, rewardPool);
     }
 
     function withdrawRewards(uint amount) external onlyRewardAdmin {
         require(rewardPool >= amount, "Not enough reward pool to withdraw");
-        rewardPool -= amount;
+        rewardPool = rewardPool.sub(amount);
         IERC20(XRP_ROOT_BPT_ADDR).transfer(msg.sender, amount);
 
         emit WithdrawRewards(msg.sender, amount, rewardPool);
@@ -539,8 +547,8 @@ contract Campaign {
     }
 
     function changeApr(uint newApr) external onlyRewardAdmin {
-        rewardPool = (rewardPool * newApr) / apr;
-        rewardToBePaid = (rewardToBePaid * newApr) / apr;
+        rewardPool = rewardPool.mulDown(newApr.divDown(apr));
+        rewardToBePaid = rewardToBePaid.mulDown(newApr.divDown(apr));
         apr = newApr;
     }
 
@@ -568,7 +576,7 @@ contract Campaign {
             "Campaign: Not enough supported liquidity to take back"
         );
         IERC20(ROOT_TOKEN_ADDR).transfer(msg.sender, amount);
-        liquiditySupport -= amount;
+        liquiditySupport = liquiditySupport.sub(amount);
 
         emit TakebackLiquidity(msg.sender, amount, liquiditySupport);
     }
@@ -584,7 +592,7 @@ contract Campaign {
             lockedLiquidity >= amount,
             "Campaign: Not enough locked liquidity to withdraw"
         );
-        lockedLiquidity -= amount;
+        lockedLiquidity = lockedLiquidity.sub(amount);
         IERC20(XRP_ROOT_BPT_ADDR).transfer(msg.sender, amount);
 
         emit WithdrawLiquidityAsBPTAfterLockup(
