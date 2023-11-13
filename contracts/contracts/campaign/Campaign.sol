@@ -216,31 +216,8 @@ contract Campaign {
                 amountRootIn
             );
 
-            IVault.SingleSwap memory singleSwap = IVault.SingleSwap({
-                poolId: MOAI_POOL_ID,
-                kind: IVault.SwapKind.GIVEN_IN,
-                assetIn: IAsset(ROOT_TOKEN_ADDR),
-                assetOut: IAsset(XRP_TOKEN_ADDR),
-                amount: amountRootIn,
-                userData: new bytes(0)
-            });
-
-            IVault.FundManagement memory funds = IVault.FundManagement({
-                sender: address(this),
-                fromInternalBalance: false,
-                recipient: payable(address(this)),
-                toInternalBalance: false
-            });
-
-            uint xrpOut = IVault(MOAI_VAULT_ADDR).swap(
-                singleSwap,
-                funds,
-                0,
-                block.timestamp + 1 days
-            );
+            uint xrpOut = _swapRootToXrp(amountRootIn);
             amountXrp = amountXrp.add(xrpOut);
-
-            emit SwapRootToXrp(msg.sender, amountRootIn, xrpOut);
         }
 
         IERC20[] memory poolTokens;
@@ -323,6 +300,35 @@ contract Campaign {
         liquiditySupport = liquiditySupport.add(amount);
 
         emit SupportLiquidity(msg.sender, amount, liquiditySupport);
+    }
+
+    function _swapRootToXrp(uint amountRootIn) internal returns (uint xrpOut) {
+        IVault.SingleSwap memory singleSwap = IVault.SingleSwap({
+            poolId: MOAI_POOL_ID,
+            kind: IVault.SwapKind.GIVEN_IN,
+            assetIn: IAsset(ROOT_TOKEN_ADDR),
+            assetOut: IAsset(XRP_TOKEN_ADDR),
+            amount: amountRootIn,
+            userData: new bytes(0)
+        });
+
+        IVault.FundManagement memory funds = IVault.FundManagement({
+            sender: address(this),
+            fromInternalBalance: false,
+            recipient: payable(address(this)),
+            toInternalBalance: false
+        });
+
+        xrpOut = IVault(MOAI_VAULT_ADDR).swap(
+            singleSwap,
+            funds,
+            0,
+            block.timestamp + 1 days
+        );
+
+        emit SwapRootToXrp(msg.sender, amountRootIn, xrpOut);
+
+        return xrpOut;
     }
 
     function _joinPool(
