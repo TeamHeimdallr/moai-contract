@@ -411,7 +411,7 @@ contract Campaign {
 
     // Farm LP tokens for rewards
     function _farm(uint amount) internal {
-        require(amount != 0, "Farmed amount should not be zero");
+        require(amount != 0, "Campaign: Farmed amount should not be zero");
         Farm storage farm = farms[msg.sender];
         _accrue(farm);
         if (farm.amountFarmed == farm.amountPairedBPTLocked) {
@@ -431,7 +431,7 @@ contract Campaign {
                 rewardEndTime.sub(block.timestamp)
             )
         );
-        require(rewardPool >= rewardToBePaid, "Farming cap is full");
+        require(rewardPool >= rewardToBePaid, "Campaign: Farming cap is full");
 
         emit Farmed(
             msg.sender,
@@ -444,16 +444,16 @@ contract Campaign {
 
     // Campaign part should repay 'amountToBeFreed' of BPT and give back $ROOT to Futureverse's LP support pool
     function _unfarm(uint amount) internal returns (uint amountToBeFreed) {
-        require(amount != 0, "Unfarmed amount should not be zero");
+        require(amount != 0, "Campaign: Unfarmed amount should not be zero");
         Farm storage farm = farms[msg.sender];
         _accrue(farm);
         require(
             farm.amountFarmed >= amount,
-            "Not able to withdraw more than deposited"
+            "Campaign: Not able to withdraw more than deposited"
         );
         require(
             farm.depositedTime + userLockupPeriod < block.timestamp,
-            "Lockup period"
+            "Campaign: Lockup period"
         );
         farm.amountFarmed = farm.amountFarmed.sub(amount);
         if (farm.amountPairedBPTLocked < amount) {
@@ -529,7 +529,10 @@ contract Campaign {
     }
 
     function withdrawRewards(uint amount) external onlyRewardAdmin {
-        require(rewardPool >= amount, "Not enough reward pool to withdraw");
+        require(
+            rewardPool >= amount,
+            "Campaign: Not enough reward pool to withdraw"
+        );
         rewardPool = rewardPool.sub(amount);
         IERC20(XRP_ROOT_BPT_ADDR).transfer(msg.sender, amount);
 
@@ -564,7 +567,7 @@ contract Campaign {
     ) external onlyRewardAdmin {
         require(
             newStartTime < newEndTime,
-            "new start time should be ealier than new end time"
+            "Campaign: new start time should be ealier than new end time"
         );
         rewardStartTime = newStartTime;
         rewardEndTime = newEndTime;
