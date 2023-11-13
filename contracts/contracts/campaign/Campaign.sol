@@ -10,20 +10,13 @@ import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
 contract Campaign {
     using FixedPoint for uint256;
 
-    address public constant ROOT_TOKEN_ADDR =
-        0xcCcCCccC00000001000000000000000000000000;
-    address public constant XRP_TOKEN_ADDR =
-        0xCCCCcCCc00000002000000000000000000000000;
-    address public constant MOAI_VAULT_ADDR =
-        0x6548DEA2fB59143215E54595D0157B79aac1335e;
-    address public constant XRP_ROOT_BPT_ADDR =
-        0x291AF6E1b841cAD6e3DCD66f2AA0790a007578AD;
-    bytes32 public constant MOAI_POOL_ID =
-        bytes32(
-            0x291af6e1b841cad6e3dcd66f2aa0790a007578ad000200000000000000000000
-        );
-    uint private constant ROOT_INDEX = 0;
-    uint private constant XRP_INDEX = 1;
+    address public rootTokenAddr;
+    address public xrpTokenAddr;
+    address public moaiVaultAddr;
+    address public xrpRootBptAddr;
+    bytes32 public moaiPoolId;
+    uint public xrpIndex;
+    uint public rootIndex;
 
     // Configurations
     uint public apr = 70000; // 100% = 1000000, 1e6
@@ -32,7 +25,7 @@ contract Campaign {
     // If a deposit is locked up more than 'periodToLockupLPSupport',
     //  the supported liquidity by Futureverse becomes locked up for 2 years
     //  The locked up BPT isn't freed when the user withdraw from this campaign
-    uint public periodToLockupLPSupport = 1 weeks; // TODO : changeable or not?
+    uint public periodToLockupLPSupport = 1 weeks;
     uint public rewardStartTime = type(uint256).max - 1;
     uint public rewardEndTime = type(uint256).max;
     uint public liquiditySupportLockupPeriod = 2 * 365 days; // 2 years
@@ -46,16 +39,55 @@ contract Campaign {
     uint rewardPool;
     uint rewardToBePaid;
 
-    constructor() {
+    constructor(
+        address rootTokenAddr_,
+        address xrpTokenAddr_,
+        address vaultAddress_,
+        address bptAddr_,
+        bytes32 poolId_
+    ) {
         rewardAdmin = msg.sender;
         rootLiquidityAdmin = msg.sender;
-        IERC20(ROOT_TOKEN_ADDR).approve(MOAI_VAULT_ADDR, type(uint256).max);
-        IERC20(XRP_TOKEN_ADDR).approve(MOAI_VAULT_ADDR, type(uint256).max);
+
+        rootTokenAddr = rootTokenAddr_;
+        xrpTokenAddr = xrpTokenAddr_;
+        moaiVaultAddr = vaultAddress_;
+        xrpRootBptAddr = bptAddr_;
+        moaiPoolId = poolId_;
+
+        IERC20[] memory poolTokens;
+        uint[] memory poolTokenBalances;
+        uint _lastChangeBlock;
+        (poolTokens, poolTokenBalances, _lastChangeBlock) = IVault(
+            moaiVaultAddr
+        ).getPoolTokens(moaiPoolId);
+
+        require(
+            poolTokens.length == 2,
+            "Campaign: The pool should be two tokens"
+        );
+
+        require(
+            poolTokenBalances[0] > 0 && poolTokenBalances[1] > 0,
+            "Campaign: The pool should have liquidity"
+        );
+
+        xrpIndex = (poolTokens[0] == IERC20(xrpTokenAddr)) ? 0 : 1;
+        rootIndex = (xrpIndex == 0) ? 1 : 0;
+
+        require(
+            poolTokens[xrpIndex] == IERC20(xrpTokenAddr) &&
+                poolTokens[rootIndex] == IERC20(rootTokenAddr),
+            "Campaign: The pool should be XRP-ROOT pool"
+        );
+
+        IERC20(rootTokenAddr).approve(moaiVaultAddr, type(uint256).max);
+        IERC20(xrpTokenAddr).approve(moaiVaultAddr, type(uint256).max);
     }
 
     struct Farm {
         uint amountFarmed;
-        uint amountLocked; // TODO : rename this. The amount of BPT whose paired BPT of Futureverse was locked
+        uint amountPairedBPTLocked;
         uint unclaimedRewards;
         uint lastRewardTime;
         uint depositedTime;
@@ -64,14 +96,14 @@ contract Campaign {
     mapping(address => Farm) public farms;
 
     modifier onlyRewardAdmin() {
-        require(msg.sender == rewardAdmin, "Only rewardAdmin can do");
+        require(msg.sender == rewardAdmin, "Campaign: Only rewardAdmin can do");
         _;
     }
 
     modifier onlyRootLiquidityAdmin() {
         require(
             msg.sender == rootLiquidityAdmin,
-            "Only rootLiquidityAdmin can do"
+            "Campaign: Only rootLiquidityAdmin can do"
         );
         _;
     }
@@ -112,7 +144,7 @@ contract Campaign {
         address indexed sender,
         uint amountFarmedBPTOut,
         uint amountFarmedBPT,
-        uint amountLocked,
+        uint amountPairedBPTLocked,
         uint totalRewardToBePaid
     );
     event SupportLiquidity(
@@ -168,7 +200,7 @@ contract Campaign {
         );
 
         if (amountXrpIn > 0) {
-            IERC20(XRP_TOKEN_ADDR).transferFrom(
+            IERC20(xrpTokenAddr).transferFrom(
                 msg.sender,
                 address(this),
                 amountXrpIn
@@ -176,45 +208,22 @@ contract Campaign {
         }
 
         if (amountRootIn > 0) {
-            IERC20(ROOT_TOKEN_ADDR).transferFrom(
+            IERC20(rootTokenAddr).transferFrom(
                 msg.sender,
                 address(this),
                 amountRootIn
             );
 
-            IVault.SingleSwap memory singleSwap = IVault.SingleSwap({
-                poolId: MOAI_POOL_ID,
-                kind: IVault.SwapKind.GIVEN_IN,
-                assetIn: IAsset(ROOT_TOKEN_ADDR),
-                assetOut: IAsset(XRP_TOKEN_ADDR),
-                amount: amountRootIn,
-                userData: new bytes(0)
-            });
-
-            IVault.FundManagement memory funds = IVault.FundManagement({
-                sender: address(this),
-                fromInternalBalance: false,
-                recipient: payable(address(this)),
-                toInternalBalance: false
-            });
-
-            uint xrpOut = IVault(MOAI_VAULT_ADDR).swap(
-                singleSwap,
-                funds,
-                0,
-                2000000000
-            ); // TODO: deadline
-            amountXrp += xrpOut;
-
-            emit SwapRootToXrp(msg.sender, amountRootIn, xrpOut);
+            uint xrpOut = _swapRootToXrp(amountRootIn);
+            amountXrp = amountXrp.add(xrpOut);
         }
 
         IERC20[] memory poolTokens;
         uint[] memory poolTokenBalances;
         uint _lastChangeBlock;
         (poolTokens, poolTokenBalances, _lastChangeBlock) = IVault(
-            MOAI_VAULT_ADDR
-        ).getPoolTokens(MOAI_POOL_ID);
+            moaiVaultAddr
+        ).getPoolTokens(moaiPoolId);
 
         require(
             poolTokens.length == 2 && poolTokenBalances.length == 2,
@@ -226,11 +235,9 @@ contract Campaign {
             "Campaign: The pool should have liquidity"
         );
 
-        uint spotPrice = (poolTokens[0] == IERC20(XRP_TOKEN_ADDR))
-            ? poolTokenBalances[1].divDown(poolTokenBalances[0])
-            : poolTokenBalances[0].divDown(poolTokenBalances[1]);
-
-        uint pairedAmountRoot = amountXrp.mulDown(spotPrice);
+        uint pairedAmountRoot = amountXrp.mulDown(
+            poolTokenBalances[rootIndex].divDown(poolTokenBalances[xrpIndex])
+        );
 
         require(
             liquiditySupport >= pairedAmountRoot,
@@ -238,7 +245,7 @@ contract Campaign {
         );
 
         uint amountBPT = _joinPool(pairedAmountRoot, amountXrp);
-        liquiditySupport -= pairedAmountRoot;
+        liquiditySupport = liquiditySupport.sub(pairedAmountRoot);
 
         _farm(amountBPT / 2);
 
@@ -256,18 +263,20 @@ contract Campaign {
         uint amountToBeFreed = _unfarm(amount);
 
         // user
-        _exitPool(amount, XRP_INDEX, msg.sender);
+        _exitPool(amount, xrpIndex, msg.sender);
 
         // freed supported root
         if (amountToBeFreed > 0) {
-            uint beforeRootAmount = IERC20(ROOT_TOKEN_ADDR).balanceOf(
+            uint beforeRootAmount = IERC20(rootTokenAddr).balanceOf(
                 address(this)
             );
-            _exitPool(amountToBeFreed, ROOT_INDEX, address(this));
-            uint afterRootAmount = IERC20(ROOT_TOKEN_ADDR).balanceOf(
+            _exitPool(amountToBeFreed, rootIndex, address(this));
+            uint afterRootAmount = IERC20(rootTokenAddr).balanceOf(
                 address(this)
             );
-            liquiditySupport += (afterRootAmount - beforeRootAmount);
+            liquiditySupport = liquiditySupport.add(
+                afterRootAmount.sub(beforeRootAmount)
+            );
         }
     }
 
@@ -275,19 +284,48 @@ contract Campaign {
         uint rewardAmount = _returnAndClearRewardAmount();
         require(rewardAmount > 0, "Campaign: No rewards to claim");
 
-        uint beforeRootAmount = IERC20(ROOT_TOKEN_ADDR).balanceOf(msg.sender);
-        _exitPool(rewardAmount, ROOT_INDEX, msg.sender);
-        uint afterRootAmount = IERC20(ROOT_TOKEN_ADDR).balanceOf(msg.sender);
+        uint beforeRootAmount = IERC20(rootTokenAddr).balanceOf(msg.sender);
+        _exitPool(rewardAmount, rootIndex, msg.sender);
+        uint afterRootAmount = IERC20(rootTokenAddr).balanceOf(msg.sender);
 
         emit Claim(msg.sender, afterRootAmount - beforeRootAmount);
     }
 
     // Support $ROOT liquidity
     function supportLiquidity(uint amount) external {
-        IERC20(ROOT_TOKEN_ADDR).transferFrom(msg.sender, address(this), amount);
-        liquiditySupport += amount;
+        IERC20(rootTokenAddr).transferFrom(msg.sender, address(this), amount);
+        liquiditySupport = liquiditySupport.add(amount);
 
         emit SupportLiquidity(msg.sender, amount, liquiditySupport);
+    }
+
+    function _swapRootToXrp(uint amountRootIn) internal returns (uint xrpOut) {
+        IVault.SingleSwap memory singleSwap = IVault.SingleSwap({
+            poolId: moaiPoolId,
+            kind: IVault.SwapKind.GIVEN_IN,
+            assetIn: IAsset(rootTokenAddr),
+            assetOut: IAsset(xrpTokenAddr),
+            amount: amountRootIn,
+            userData: new bytes(0)
+        });
+
+        IVault.FundManagement memory funds = IVault.FundManagement({
+            sender: address(this),
+            fromInternalBalance: false,
+            recipient: payable(address(this)),
+            toInternalBalance: false
+        });
+
+        xrpOut = IVault(moaiVaultAddr).swap(
+            singleSwap,
+            funds,
+            0,
+            block.timestamp + 1 days
+        );
+
+        emit SwapRootToXrp(msg.sender, amountRootIn, xrpOut);
+
+        return xrpOut;
     }
 
     function _joinPool(
@@ -295,12 +333,12 @@ contract Campaign {
         uint amountXrp
     ) internal returns (uint joinedBPT) {
         IAsset[] memory joinAsset = new IAsset[](2);
-        joinAsset[0] = IAsset(ROOT_TOKEN_ADDR);
-        joinAsset[1] = IAsset(XRP_TOKEN_ADDR);
+        joinAsset[rootIndex] = IAsset(rootTokenAddr);
+        joinAsset[xrpIndex] = IAsset(xrpTokenAddr);
 
         uint[] memory joinAmountsIn = new uint[](2);
-        joinAmountsIn[0] = amountRoot;
-        joinAmountsIn[1] = amountXrp;
+        joinAmountsIn[rootIndex] = amountRoot;
+        joinAmountsIn[xrpIndex] = amountXrp;
 
         bytes memory userData = abi.encode(
             WeightedPoolUserData.JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT,
@@ -315,20 +353,20 @@ contract Campaign {
             fromInternalBalance: false
         });
 
-        uint amountBPTBeforeJoin = IERC20(XRP_ROOT_BPT_ADDR).balanceOf(
+        uint amountBPTBeforeJoin = IERC20(xrpRootBptAddr).balanceOf(
             address(this)
         );
-        IVault(MOAI_VAULT_ADDR).joinPool(
-            MOAI_POOL_ID,
+        IVault(moaiVaultAddr).joinPool(
+            moaiPoolId,
             address(this),
             address(this),
             request
         );
-        uint amountBPTAfterJoin = IERC20(XRP_ROOT_BPT_ADDR).balanceOf(
+        uint amountBPTAfterJoin = IERC20(xrpRootBptAddr).balanceOf(
             address(this)
         );
 
-        joinedBPT = amountBPTAfterJoin - amountBPTBeforeJoin;
+        joinedBPT = amountBPTAfterJoin.sub(amountBPTBeforeJoin);
 
         emit JoinPool(msg.sender, amountXrp, amountRoot, joinedBPT);
     }
@@ -339,12 +377,12 @@ contract Campaign {
         address recipient
     ) internal {
         IAsset[] memory exitAsset = new IAsset[](2);
-        exitAsset[0] = IAsset(ROOT_TOKEN_ADDR);
-        exitAsset[1] = IAsset(XRP_TOKEN_ADDR);
+        exitAsset[rootIndex] = IAsset(rootTokenAddr);
+        exitAsset[xrpIndex] = IAsset(xrpTokenAddr);
 
         uint[] memory exitAmountsOut = new uint[](2);
-        exitAmountsOut[0] = 0;
-        exitAmountsOut[1] = 0;
+        exitAmountsOut[rootIndex] = 0;
+        exitAmountsOut[xrpIndex] = 0;
 
         bytes memory userData = abi.encode(
             WeightedPoolUserData.ExitKind.EXACT_BPT_IN_FOR_ONE_TOKEN_OUT,
@@ -359,8 +397,8 @@ contract Campaign {
             toInternalBalance: false
         });
 
-        IVault(MOAI_VAULT_ADDR).exitPool(
-            MOAI_POOL_ID,
+        IVault(moaiVaultAddr).exitPool(
+            moaiPoolId,
             address(this),
             payable(recipient),
             request
@@ -378,23 +416,27 @@ contract Campaign {
 
     // Farm LP tokens for rewards
     function _farm(uint amount) internal {
-        require(amount != 0, "Farmed amount should not be zero");
+        require(amount != 0, "Campaign: Farmed amount should not be zero");
         Farm storage farm = farms[msg.sender];
         _accrue(farm);
-        if (farm.amountFarmed == farm.amountLocked) {
+        if (farm.amountFarmed == farm.amountPairedBPTLocked) {
             farm.depositedTime = block.timestamp;
         } else {
             // If there is a farmed amount whose paired LP support is not locked up,
             //  its new depositTime is an internally dividing point in inversely proportional to deposited amounts
-            farm.depositedTime +=
-                ((block.timestamp - farm.depositedTime) * amount) /
-                (farm.amountFarmed + amount);
+            farm.depositedTime = farm.depositedTime.add(
+                (block.timestamp.sub(farm.depositedTime))
+                    .divDown(farm.amountFarmed.add(amount))
+                    .mulDown(amount)
+            );
         }
-        farm.amountFarmed += amount;
-        rewardToBePaid +=
-            (((amount * apr) / 1e6) * (rewardEndTime - block.timestamp)) /
-            365 days;
-        require(rewardPool >= rewardToBePaid, "Farming cap is full");
+        farm.amountFarmed = farm.amountFarmed.add(amount);
+        rewardToBePaid = rewardToBePaid.add(
+            apr.divDown(1e6).mulDown(amount).divDown(365 days).mulDown(
+                rewardEndTime.sub(block.timestamp)
+            )
+        );
+        require(rewardPool >= rewardToBePaid, "Campaign: Farming cap is full");
 
         emit Farmed(
             msg.sender,
@@ -407,34 +449,36 @@ contract Campaign {
 
     // Campaign part should repay 'amountToBeFreed' of BPT and give back $ROOT to Futureverse's LP support pool
     function _unfarm(uint amount) internal returns (uint amountToBeFreed) {
-        require(amount != 0, "Unfarmed amount should not be zero");
+        require(amount != 0, "Campaign: Unfarmed amount should not be zero");
         Farm storage farm = farms[msg.sender];
         _accrue(farm);
         require(
             farm.amountFarmed >= amount,
-            "Not able to withdraw more than deposited"
+            "Campaign: Not able to withdraw more than deposited"
         );
         require(
             farm.depositedTime + userLockupPeriod < block.timestamp,
-            "Lockup period"
+            "Campaign: Lockup period"
         );
-        farm.amountFarmed -= amount;
-        if (farm.amountLocked < amount) {
-            amountToBeFreed = amount - farm.amountLocked;
-            farm.amountLocked = 0;
+        farm.amountFarmed = farm.amountFarmed.sub(amount);
+        if (farm.amountPairedBPTLocked < amount) {
+            amountToBeFreed = amount.sub(farm.amountPairedBPTLocked);
+            farm.amountPairedBPTLocked = 0;
         } else {
             amountToBeFreed = 0;
-            farm.amountLocked -= amount;
+            farm.amountPairedBPTLocked = farm.amountPairedBPTLocked.sub(amount);
         }
-        rewardToBePaid -=
-            (((amount * apr) / 1e6) * (rewardEndTime - block.timestamp)) /
-            365 days;
+        rewardToBePaid = rewardToBePaid.sub(
+            amount.mulDown(apr.divDown(1e6)).divDown(365 days).mulDown(
+                rewardEndTime.sub(block.timestamp)
+            )
+        );
 
         emit UnFarmed(
             msg.sender,
             amount,
             farm.amountFarmed,
-            farm.amountLocked,
+            farm.amountPairedBPTLocked,
             rewardToBePaid
         );
     }
@@ -451,44 +495,47 @@ contract Campaign {
             block.timestamp > rewardStartTime &&
             farm.lastRewardTime < rewardEndTime
         ) {
-            uint reward = (((farm.amountFarmed * apr) / 1e6) *
-                ((
-                    block.timestamp < rewardEndTime
-                        ? block.timestamp
-                        : rewardEndTime
-                ) -
+            uint reward = farm.amountFarmed.mulDown(apr.divDown(1e6)).mulDown(
+                (
                     (
-                        farm.lastRewardTime > rewardStartTime
-                            ? farm.lastRewardTime
-                            : rewardStartTime
-                    ))) / 365 days;
-            farm.unclaimedRewards += reward;
-            rewardToBePaid -= reward;
-            rewardPool -= reward;
+                        block.timestamp < rewardEndTime
+                            ? block.timestamp
+                            : rewardEndTime
+                    ).sub(
+                            farm.lastRewardTime > rewardStartTime
+                                ? farm.lastRewardTime
+                                : rewardStartTime
+                        )
+                ).divDown(365 days)
+            );
+            farm.unclaimedRewards = farm.unclaimedRewards.add(reward);
+            rewardToBePaid = rewardToBePaid.sub(reward);
+            rewardPool = rewardPool.sub(reward);
             farm.lastRewardTime = block.timestamp;
         }
         if (block.timestamp - farm.depositedTime > periodToLockupLPSupport) {
-            lockedLiquidity += (farm.amountFarmed - farm.amountLocked);
-            farm.amountLocked = farm.amountFarmed;
+            lockedLiquidity = lockedLiquidity.add(
+                farm.amountFarmed.sub(farm.amountPairedBPTLocked)
+            );
+            farm.amountPairedBPTLocked = farm.amountFarmed;
         }
     }
 
     // Provide farm reward with $XRP-$ROOT BPT
     function provideRewards(uint amount) external {
-        IERC20(XRP_ROOT_BPT_ADDR).transferFrom(
-            msg.sender,
-            address(this),
-            amount
-        );
-        rewardPool += amount;
+        IERC20(xrpRootBptAddr).transferFrom(msg.sender, address(this), amount);
+        rewardPool = rewardPool.add(amount);
 
         emit ProvideRewards(msg.sender, amount, rewardPool);
     }
 
     function withdrawRewards(uint amount) external onlyRewardAdmin {
-        require(rewardPool >= amount, "Not enough reward pool to withdraw");
-        rewardPool -= amount;
-        IERC20(XRP_ROOT_BPT_ADDR).transfer(msg.sender, amount);
+        require(
+            rewardPool >= amount,
+            "Campaign: Not enough reward pool to withdraw"
+        );
+        rewardPool = rewardPool.sub(amount);
+        IERC20(xrpRootBptAddr).transfer(msg.sender, amount);
 
         emit WithdrawRewards(msg.sender, amount, rewardPool);
     }
@@ -504,8 +551,8 @@ contract Campaign {
     }
 
     function changeApr(uint newApr) external onlyRewardAdmin {
-        rewardPool = (rewardPool * newApr) / apr;
-        rewardToBePaid = (rewardToBePaid * newApr) / apr;
+        rewardPool = rewardPool.mulDown(newApr.divDown(apr));
+        rewardToBePaid = rewardToBePaid.mulDown(newApr.divDown(apr));
         apr = newApr;
     }
 
@@ -521,10 +568,16 @@ contract Campaign {
     ) external onlyRewardAdmin {
         require(
             newStartTime < newEndTime,
-            "new start time should be ealier than new end time"
+            "Campaign: new start time should be ealier than new end time"
         );
         rewardStartTime = newStartTime;
         rewardEndTime = newEndTime;
+    }
+
+    function changePeriodToLockupLPSupport(
+        uint newPeriodToLockupLPSupport
+    ) external onlyRewardAdmin {
+        periodToLockupLPSupport = newPeriodToLockupLPSupport;
     }
 
     function takebackSupport(uint amount) external onlyRootLiquidityAdmin {
@@ -532,8 +585,8 @@ contract Campaign {
             liquiditySupport >= amount,
             "Campaign: Not enough supported liquidity to take back"
         );
-        IERC20(ROOT_TOKEN_ADDR).transfer(msg.sender, amount);
-        liquiditySupport -= amount;
+        IERC20(rootTokenAddr).transfer(msg.sender, amount);
+        liquiditySupport = liquiditySupport.sub(amount);
 
         emit TakebackLiquidity(msg.sender, amount, liquiditySupport);
     }
@@ -549,8 +602,8 @@ contract Campaign {
             lockedLiquidity >= amount,
             "Campaign: Not enough locked liquidity to withdraw"
         );
-        lockedLiquidity -= amount;
-        IERC20(XRP_ROOT_BPT_ADDR).transfer(msg.sender, amount);
+        lockedLiquidity = lockedLiquidity.sub(amount);
+        IERC20(xrpRootBptAddr).transfer(msg.sender, amount);
 
         emit WithdrawLiquidityAsBPTAfterLockup(
             msg.sender,
