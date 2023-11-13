@@ -75,13 +75,19 @@ contract Campaign {
         XRP_INDEX = (poolTokens[0] == IERC20(XRP_TOKEN_ADDR)) ? 0 : 1;
         ROOT_INDEX = (XRP_INDEX == 0) ? 1 : 0;
 
+        require(
+            poolTokens[XRP_INDEX] == IERC20(XRP_TOKEN_ADDR) &&
+                poolTokens[ROOT_INDEX] == IERC20(ROOT_TOKEN_ADDR),
+            "Campaign: The pool should be XRP-ROOT pool"
+        );
+
         IERC20(ROOT_TOKEN_ADDR).approve(MOAI_VAULT_ADDR, type(uint256).max);
         IERC20(XRP_TOKEN_ADDR).approve(MOAI_VAULT_ADDR, type(uint256).max);
     }
 
     struct Farm {
         uint amountFarmed;
-        uint amountLocked; // TODO : rename this. The amount of BPT whose paired BPT of Futureverse was locked
+        uint amountPairedBPTLocked;
         uint unclaimedRewards;
         uint lastRewardTime;
         uint depositedTime;
@@ -138,7 +144,7 @@ contract Campaign {
         address indexed sender,
         uint amountFarmedBPTOut,
         uint amountFarmedBPT,
-        uint amountLocked,
+        uint amountPairedBPTLocked,
         uint totalRewardToBePaid
     );
     event SupportLiquidity(
@@ -406,7 +412,7 @@ contract Campaign {
         require(amount != 0, "Farmed amount should not be zero");
         Farm storage farm = farms[msg.sender];
         _accrue(farm);
-        if (farm.amountFarmed == farm.amountLocked) {
+        if (farm.amountFarmed == farm.amountPairedBPTLocked) {
             farm.depositedTime = block.timestamp;
         } else {
             // If there is a farmed amount whose paired LP support is not locked up,
@@ -448,12 +454,12 @@ contract Campaign {
             "Lockup period"
         );
         farm.amountFarmed -= amount;
-        if (farm.amountLocked < amount) {
-            amountToBeFreed = amount - farm.amountLocked;
-            farm.amountLocked = 0;
+        if (farm.amountPairedBPTLocked < amount) {
+            amountToBeFreed = amount - farm.amountPairedBPTLocked;
+            farm.amountPairedBPTLocked = 0;
         } else {
             amountToBeFreed = 0;
-            farm.amountLocked -= amount;
+            farm.amountPairedBPTLocked -= amount;
         }
         rewardToBePaid -=
             (((amount * apr) / 1e6) * (rewardEndTime - block.timestamp)) /
@@ -463,7 +469,7 @@ contract Campaign {
             msg.sender,
             amount,
             farm.amountFarmed,
-            farm.amountLocked,
+            farm.amountPairedBPTLocked,
             rewardToBePaid
         );
     }
@@ -497,8 +503,8 @@ contract Campaign {
             farm.lastRewardTime = block.timestamp;
         }
         if (block.timestamp - farm.depositedTime > periodToLockupLPSupport) {
-            lockedLiquidity += (farm.amountFarmed - farm.amountLocked);
-            farm.amountLocked = farm.amountFarmed;
+            lockedLiquidity += (farm.amountFarmed - farm.amountPairedBPTLocked);
+            farm.amountPairedBPTLocked = farm.amountFarmed;
         }
     }
 
