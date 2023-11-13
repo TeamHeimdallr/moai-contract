@@ -25,7 +25,7 @@ contract Campaign {
     // If a deposit is locked up more than 'periodToLockupLPSupport',
     //  the supported liquidity by Futureverse becomes locked up for 2 years
     //  The locked up BPT isn't freed when the user withdraw from this campaign
-    uint public periodToLockupLPSupport = 1 weeks; // TODO : changeable or not?
+    uint public periodToLockupLPSupport;
     uint public rewardStartTime = type(uint256).max - 1;
     uint public rewardEndTime = type(uint256).max;
     uint public liquiditySupportLockupPeriod = 2 * 365 days; // 2 years
@@ -83,6 +83,8 @@ contract Campaign {
 
         IERC20(ROOT_TOKEN_ADDR).approve(MOAI_VAULT_ADDR, type(uint256).max);
         IERC20(XRP_TOKEN_ADDR).approve(MOAI_VAULT_ADDR, type(uint256).max);
+
+        periodToLockupLPSupport = 1 weeks;
     }
 
     struct Farm {
@@ -571,6 +573,12 @@ contract Campaign {
         );
         rewardStartTime = newStartTime;
         rewardEndTime = newEndTime;
+    }
+
+    function changePeriodToLockupLPSupport(
+        uint newPeriodToLockupLPSupport
+    ) external onlyRewardAdmin {
+        periodToLockupLPSupport = newPeriodToLockupLPSupport;
     }
 
     function takebackSupport(uint amount) external onlyRootLiquidityAdmin {
