@@ -96,11 +96,6 @@ contract Campaign is MoaiUtils {
         _;
     }
 
-    event SwapRootToXrp(
-        address indexed sender,
-        uint amountRootIn,
-        uint amountXrpOut
-    );
     event Participate(
         address indexed participant,
         uint amountXrpIn,
@@ -108,17 +103,6 @@ contract Campaign is MoaiUtils {
         uint amountXrpForJoin,
         uint amountPairedRootForJoin,
         uint remainedRootLiquidtySupport
-    );
-    event JoinPool(
-        address indexed sender,
-        uint amountXrp,
-        uint amountRoot,
-        uint amountBPT
-    );
-    event ExitPool(
-        address indexed recipient,
-        uint amountBPT,
-        uint exitAssetIndex
     );
     event Claim(address indexed claimer, uint amountRoot);
     event Farmed(
@@ -203,7 +187,6 @@ contract Campaign is MoaiUtils {
             );
 
             uint xrpOut = _swapRootToXrp(amountRootIn);
-            emit SwapRootToXrp(msg.sender, amountRootIn, xrpOut);
             amountXrp += xrpOut;
         }
 
@@ -233,7 +216,6 @@ contract Campaign is MoaiUtils {
         );
 
         uint amountBPT = _joinPool(pairedAmountRoot, amountXrp);
-        emit JoinPool(msg.sender, amountXrp, pairedAmountRoot, amountBPT);
         liquiditySupport -= pairedAmountRoot;
 
         _farm(amountBPT / 2);
@@ -253,7 +235,6 @@ contract Campaign is MoaiUtils {
 
         // user
         _exitPool(amount, xrpIndex, msg.sender);
-        emit ExitPool(msg.sender, amount, xrpIndex);
 
         // freed supported root
         if (amountToBeFreed > 0) {
@@ -261,7 +242,6 @@ contract Campaign is MoaiUtils {
                 address(this)
             );
             _exitPool(amountToBeFreed, rootIndex, address(this));
-            emit ExitPool(address(this), amountToBeFreed, rootIndex);
             uint afterRootAmount = IERC20(rootTokenAddr).balanceOf(
                 address(this)
             );
@@ -275,7 +255,6 @@ contract Campaign is MoaiUtils {
 
         uint beforeRootAmount = IERC20(rootTokenAddr).balanceOf(msg.sender);
         _exitPool(rewardAmount, rootIndex, msg.sender);
-        emit ExitPool(msg.sender, rewardAmount, rootIndex);
         uint afterRootAmount = IERC20(rootTokenAddr).balanceOf(msg.sender);
 
         emit Claim(msg.sender, afterRootAmount - beforeRootAmount);
