@@ -27,14 +27,14 @@ contract Campaign {
     uint public rewardEndTime = type(uint256).max;
     uint public liquiditySupportLockupPeriod = 2 * 365 days; // 2 years
 
-    address rewardAdmin; // Moai Finance
-    address rootLiquidityAdmin; // Futureverse
+    address public rewardAdmin; // Moai Finance
+    address public rootLiquidityAdmin; // Futureverse
 
-    uint liquiditySupport;
-    uint lockedLiquidity;
+    uint public liquiditySupport;
+    uint public lockedLiquidity;
 
-    uint rewardPool;
-    uint rewardToBePaid;
+    uint public rewardPool;
+    uint public rewardToBePaid;
 
     constructor(
         address rootTokenAddr_,
