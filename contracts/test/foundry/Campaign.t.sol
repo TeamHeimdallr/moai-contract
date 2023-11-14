@@ -112,6 +112,7 @@ contract CampaignTest is Test {
             address(this),
             request
         );
+        console.log(bpt.balanceOf(address(this)));
 
         // Create Campaign Contract
         campaign = new Campaign(
