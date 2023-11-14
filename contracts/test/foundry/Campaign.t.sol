@@ -1,15 +1,26 @@
-pragma solidity ^0.7.1;
-pragma experimental ABIEncoderV2;
+pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 
 import "./Token.sol";
 import "../../contracts/campaign/Campaign.sol";
-import "../../contracts/weighted-pool-v4/v2-interfaces/contracts/pool-utils/IRateProvider.sol";
-import "../../contracts/weighted-pool-v4/v2-interfaces/contracts/solidity-utils/openzeppelin/IERC20.sol";
-import "../../contracts/weighted-pool-v4/v2-interfaces/contracts/vault/IBasePool.sol";
-import "../../contracts/weighted-pool-v4/WeightedPoolFactory.sol";
+import "@balancer-labs/v2-interfaces/contracts/pool-utils/IRateProvider.sol";
+import "@balancer-labs/v2-interfaces/contracts/vault/IBasePool.sol";
+import "@balancer-labs/v2-interfaces/contracts/solidity-utils/openzeppelin/IERC20.sol";
+
+interface IWeightedPoolFactory {
+    function create(
+        string memory name,
+        string memory symbol,
+        IERC20[] memory tokens,
+        uint256[] memory normalizedWeights,
+        IRateProvider[] memory rateProviders,
+        uint256 swapFeePercentage,
+        address owner,
+        bytes32 salt
+    ) public returns (address);
+}
 
 contract CampaignTest is Test {
     Token xrp;
@@ -21,7 +32,8 @@ contract CampaignTest is Test {
         WeightedPoolFactory(0x1CFE9102cA4291e358B81221757a0988a39c0A44);
     address poolAddress;
     bytes32 poolId;
-    Campaign campaign;
+
+    // Campaign campaign;
 
     function setUp() public {
         // Mock $XRP and $ROOT
@@ -61,13 +73,13 @@ contract CampaignTest is Test {
         joinAsset[rootIndex] = IAsset(address(root));
 
         // Create Campaign Contract
-        campaign = new Campaign(
-            address(root),
-            address(xrp),
-            address(vault),
-            poolAddress,
-            poolId
-        );
+        // campaign = new Campaign(
+        //     address(root),
+        //     address(xrp),
+        //     address(vault),
+        //     poolAddress,
+        //     poolId
+        // );
     }
 
     function test_Balance() public {

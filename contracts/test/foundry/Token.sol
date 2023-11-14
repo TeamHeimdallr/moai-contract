@@ -1,6 +1,6 @@
-pragma solidity ^0.7.1;
+pragma solidity ^0.8.19;
 
-import "../../contracts/weighted-pool-v4/v2-solidity-utils/contracts/openzeppelin/ERC20.sol";
+import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/ERC20.sol";
 
 contract Token is ERC20 {
     constructor(string memory name, string memory symbol) ERC20(name, symbol) {
