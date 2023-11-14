@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.19;
-pragma experimental ABIEncoderV2;
 
 import "@balancer-labs/v2-interfaces/contracts/vault/IVault.sol";
-import "@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
-import "@balancer-labs/v2-interfaces/contracts/pool-weighted/WeightedPoolUserData.sol";
 
-contract Campaign {
+import "./MoaiUtils.sol";
+
+contract Campaign is MoaiUtils {
     address public rootTokenAddr;
     address public xrpTokenAddr;
     address public moaiVaultAddr;
@@ -211,7 +210,14 @@ contract Campaign {
                 amountRootIn
             );
 
-            uint xrpOut = _swapRootToXrp(amountRootIn);
+            uint xrpOut = _swapRootToXrp(
+                moaiPoolId,
+                moaiVaultAddr,
+                rootTokenAddr,
+                xrpTokenAddr,
+                amountRootIn
+            );
+            emit SwapRootToXrp(msg.sender, amountRootIn, xrpOut);
             amountXrp += xrpOut;
         }
 
@@ -240,7 +246,18 @@ contract Campaign {
             "Campaign: Not enough supported ROOT liquidity"
         );
 
-        uint amountBPT = _joinPool(pairedAmountRoot, amountXrp);
+        uint amountBPT = _joinPool(
+            moaiPoolId,
+            moaiVaultAddr,
+            rootIndex,
+            xrpIndex,
+            xrpRootBptAddr,
+            rootTokenAddr,
+            xrpTokenAddr,
+            pairedAmountRoot,
+            amountXrp
+        );
+        emit JoinPool(msg.sender, amountXrp, pairedAmountRoot, amountBPT);
         liquiditySupport -= pairedAmountRoot;
 
         _farm(amountBPT / 2);
@@ -259,14 +276,38 @@ contract Campaign {
         uint amountToBeFreed = _unfarm(amount);
 
         // user
-        _exitPool(amount, xrpIndex, msg.sender);
+        _exitPool(
+            moaiPoolId,
+            moaiVaultAddr,
+            rootIndex,
+            xrpIndex,
+            xrpRootBptAddr,
+            rootTokenAddr,
+            xrpTokenAddr,
+            amount,
+            xrpIndex,
+            msg.sender
+        );
+        emit ExitPool(msg.sender, amount, xrpIndex);
 
         // freed supported root
         if (amountToBeFreed > 0) {
             uint beforeRootAmount = IERC20(rootTokenAddr).balanceOf(
                 address(this)
             );
-            _exitPool(amountToBeFreed, rootIndex, address(this));
+            _exitPool(
+                moaiPoolId,
+                moaiVaultAddr,
+                rootIndex,
+                xrpIndex,
+                xrpRootBptAddr,
+                rootTokenAddr,
+                xrpTokenAddr,
+                amountToBeFreed,
+                rootIndex,
+                address(this)
+            );
+            emit ExitPool(address(this), amountToBeFreed, rootIndex);
             uint afterRootAmount = IERC20(rootTokenAddr).balanceOf(
                 address(this)
             );
@@ -279,7 +320,19 @@ contract Campaign {
         require(rewardAmount > 0, "Campaign: No rewards to claim");
 
         uint beforeRootAmount = IERC20(rootTokenAddr).balanceOf(msg.sender);
-        _exitPool(rewardAmount, rootIndex, msg.sender);
+        _exitPool(
+            moaiPoolId,
+            moaiVaultAddr,
+            rootIndex,
+            xrpIndex,
+            xrpRootBptAddr,
+            rootTokenAddr,
+            xrpTokenAddr,
+            rewardAmount,
+            rootIndex,
+            msg.sender
+        );
+        emit ExitPool(msg.sender, rewardAmount, rootIndex);
         uint afterRootAmount = IERC20(rootTokenAddr).balanceOf(msg.sender);
 
         emit Claim(msg.sender, afterRootAmount - beforeRootAmount);
@@ -291,114 +344,6 @@ contract Campaign {
         liquiditySupport += amount;
 
         emit SupportLiquidity(msg.sender, amount, liquiditySupport);
-    }
-
-    function _swapRootToXrp(uint amountRootIn) internal returns (uint xrpOut) {
-        IVault.SingleSwap memory singleSwap = IVault.SingleSwap({
-            poolId: moaiPoolId,
-            kind: IVault.SwapKind.GIVEN_IN,
-            assetIn: IAsset(rootTokenAddr),
-            assetOut: IAsset(xrpTokenAddr),
-            amount: amountRootIn,
-            userData: new bytes(0)
-        });
-
-        IVault.FundManagement memory funds = IVault.FundManagement({
-            sender: address(this),
-            fromInternalBalance: false,
-            recipient: payable(address(this)),
-            toInternalBalance: false
-        });
-
-        xrpOut = IVault(moaiVaultAddr).swap(
-            singleSwap,
-            funds,
-            0,
-            block.timestamp + 1 days
-        );
-
-        emit SwapRootToXrp(msg.sender, amountRootIn, xrpOut);
-
-        return xrpOut;
-    }
-
-    function _joinPool(
-        uint amountRoot,
-        uint amountXrp
-    ) internal returns (uint joinedBPT) {
-        IAsset[] memory joinAsset = new IAsset[](2);
-        joinAsset[rootIndex] = IAsset(rootTokenAddr);
-        joinAsset[xrpIndex] = IAsset(xrpTokenAddr);
-
-        uint[] memory joinAmountsIn = new uint[](2);
-        joinAmountsIn[rootIndex] = amountRoot;
-        joinAmountsIn[xrpIndex] = amountXrp;
-
-        bytes memory userData = abi.encode(
-            WeightedPoolUserData.JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT,
-            joinAmountsIn,
-            0
-        );
-
-        IVault.JoinPoolRequest memory request = IVault.JoinPoolRequest({
-            assets: joinAsset,
-            maxAmountsIn: joinAmountsIn,
-            userData: userData,
-            fromInternalBalance: false
-        });
-
-        uint amountBPTBeforeJoin = IERC20(xrpRootBptAddr).balanceOf(
-            address(this)
-        );
-        IVault(moaiVaultAddr).joinPool(
-            moaiPoolId,
-            address(this),
-            address(this),
-            request
-        );
-        uint amountBPTAfterJoin = IERC20(xrpRootBptAddr).balanceOf(
-            address(this)
-        );
-
-        joinedBPT = amountBPTAfterJoin - amountBPTBeforeJoin;
-
-        emit JoinPool(msg.sender, amountXrp, amountRoot, joinedBPT);
-    }
-
-    function _exitPool(
-        uint exitBPTAmount,
-        uint exitAssetIndex,
-        address recipient
-    ) internal {
-        IAsset[] memory exitAsset = new IAsset[](2);
-        exitAsset[rootIndex] = IAsset(rootTokenAddr);
-        exitAsset[xrpIndex] = IAsset(xrpTokenAddr);
-
-        uint[] memory exitAmountsOut = new uint[](2);
-        exitAmountsOut[rootIndex] = 0;
-        exitAmountsOut[xrpIndex] = 0;
-
-        bytes memory userData = abi.encode(
-            WeightedPoolUserData.ExitKind.EXACT_BPT_IN_FOR_ONE_TOKEN_OUT,
-            exitBPTAmount,
-            exitAssetIndex
-        );
-
-        IVault.ExitPoolRequest memory request = IVault.ExitPoolRequest({
-            assets: exitAsset,
-            minAmountsOut: exitAmountsOut,
-            userData: userData,
-            toInternalBalance: false
-        });
-
-        IVault(moaiVaultAddr).exitPool(
-            moaiPoolId,
-            address(this),
-            payable(recipient),
-            request
-        );
-
-        emit ExitPool(recipient, exitBPTAmount, exitAssetIndex);
     }
 
     /*
