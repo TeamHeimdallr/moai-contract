@@ -7,6 +7,7 @@ import "../../contracts/campaign/Campaign.sol";
 import "@balancer-labs/v2-interfaces/contracts/pool-utils/IRateProvider.sol";
 import "@balancer-labs/v2-interfaces/contracts/vault/IBasePool.sol";
 import "@balancer-labs/v2-interfaces/contracts/solidity-utils/openzeppelin/IERC20.sol";
+import "@balancer-labs/v2-interfaces/contracts/pool-weighted/WeightedPoolUserData.sol";
 
 interface IWeightedPoolFactory {
     function create(
@@ -36,8 +37,14 @@ contract CampaignTest is Test {
         IWeightedPoolFactory(0x1CFE9102cA4291e358B81221757a0988a39c0A44);
     address poolAddress;
     bytes32 poolId;
+    uint initialJoinAmount = 1000 * 1e18;
+    uint initialRootLiquiditySupport = 100 * 1e18;
+    uint initialRewardAmount = 10 * 1e18;
+    uint startTime;
+    uint endTime;
 
     Campaign campaign;
+    IERC20 bpt;
 
     function setUp() public {
         // Mock $XRP and $ROOT
@@ -69,10 +76,42 @@ contract CampaignTest is Test {
         );
         poolId = IBasePool(poolAddress).getPoolId();
 
+        // faucet
+        xrp.faucet(address(this), 100000 * 1e18);
+        root.faucet(address(this), 100000 * 1e18);
+
+        // approve
+        xrp.approve(address(vault), initialJoinAmount);
+        root.approve(address(vault), initialJoinAmount);
+
         // Provide initial liquidity
-        // IAsset[] memory joinAsset = new IAsset[](2);
-        // joinAsset[xrpIndex] = IAsset(address(xrp));
-        // joinAsset[rootIndex] = IAsset(address(root));
+        IAsset[] memory joinAsset = new IAsset[](2);
+        joinAsset[rootIndex] = IAsset(address(root));
+        joinAsset[xrpIndex] = IAsset(address(xrp));
+
+        uint[] memory joinAmountsIn = new uint[](2);
+        joinAmountsIn[rootIndex] = initialJoinAmount;
+        joinAmountsIn[xrpIndex] = initialJoinAmount;
+
+        bytes memory userData = abi.encode(
+            WeightedPoolUserData.JoinKind.INIT,
+            joinAmountsIn
+        );
+
+        IVault.JoinPoolRequest memory request = IVault.JoinPoolRequest({
+            assets: joinAsset,
+            maxAmountsIn: joinAmountsIn,
+            userData: userData,
+            fromInternalBalance: false
+        });
+
+        // initial join
+        IVault(address(vault)).joinPool(
+            poolId,
+            address(this),
+            address(this),
+            request
+        );
 
         // Create Campaign Contract
         campaign = new Campaign(
@@ -82,13 +121,72 @@ contract CampaignTest is Test {
             poolAddress,
             poolId
         );
+
+        // change reward time
+        startTime = block.timestamp;
+        endTime = startTime + 1000;
+        campaign.changeRewardTime(startTime, endTime);
+
+        // liquidity support
+        root.approve(address(campaign), initialRootLiquiditySupport);
+        campaign.supportLiquidity(initialRootLiquiditySupport);
+
+        // provide reward
+        bpt = IERC20(poolAddress);
+        // before provide reward
+        console.log(bpt.balanceOf(address(this)));
+
+        bpt.approve(address(campaign), initialRewardAmount);
+        campaign.provideRewards(initialRewardAmount);
     }
 
-    function test_Balance() public {
-        console.logString("abc");
-        uint balance = xrp.balanceOf(address(this));
-        console.logUint(balance);
-        console.logAddress(poolAddress);
-        // assertEq(testNumber, balance);
+    function test_PoolBalance() public view {
+        IERC20[] memory poolTokens;
+        uint[] memory poolTokenBalances;
+        uint _lastChangeBlock;
+        (poolTokens, poolTokenBalances, _lastChangeBlock) = IVault(
+            address(vault)
+        ).getPoolTokens(poolId);
+
+        require(
+            poolTokenBalances[0] == initialJoinAmount,
+            "pool 0 balance is not correct"
+        );
+        require(
+            poolTokenBalances[1] == initialJoinAmount,
+            "pool 1 balance is not correct"
+        );
+    }
+
+    function test_RewardTime() public view {
+        uint startTime_ = campaign.rewardStartTime();
+        uint endTime_ = campaign.rewardEndTime();
+
+        require(startTime == startTime_, "reward start time is not correct");
+        require(endTime == endTime_, "reward end time is not correct");
+    }
+
+    function test_LiquiditySupport() public view {
+        uint liquiditySupport = campaign.liquiditySupport();
+
+        require(
+            liquiditySupport == initialRootLiquiditySupport,
+            "liquidity support is not correct"
+        );
+    }
+
+    function test_ProvideReward() public view {
+        uint rewardPool = campaign.rewardPool();
+
+        require(
+            rewardPool == initialRewardAmount,
+            "reward pool is not correct"
+        );
+
+        uint rewardBalance = bpt.balanceOf(address(campaign));
+        require(
+            rewardBalance == initialRewardAmount,
+            "reward balance is not correct"
+        );
     }
 }
