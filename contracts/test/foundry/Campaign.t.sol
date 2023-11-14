@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 
-import "./Token.sol";
 import "../../contracts/campaign/Campaign.sol";
 import "@balancer-labs/v2-interfaces/contracts/pool-utils/IRateProvider.sol";
 import "@balancer-labs/v2-interfaces/contracts/vault/IBasePool.sol";
@@ -19,26 +18,29 @@ interface IWeightedPoolFactory {
         uint256 swapFeePercentage,
         address owner,
         bytes32 salt
-    ) public returns (address);
+    ) external returns (address);
+}
+
+interface TokenForTest is IERC20 {
+    function faucet(address, uint) external;
 }
 
 contract CampaignTest is Test {
-    Token xrp;
-    Token root;
+    TokenForTest xrp = TokenForTest(0xEC6F4E813E7354BB0dFF603a7FA346a9efd5d509);
+    TokenForTest root =
+        TokenForTest(0xc2fe5fAd30d8289176f4371b2599b6412D2e1CC4);
     uint xrpIndex;
     uint rootIndex;
     IVault vault = IVault(0x6548DEA2fB59143215E54595D0157B79aac1335e);
-    WeightedPoolFactory poolFactory =
-        WeightedPoolFactory(0x1CFE9102cA4291e358B81221757a0988a39c0A44);
+    IWeightedPoolFactory poolFactory =
+        IWeightedPoolFactory(0x1CFE9102cA4291e358B81221757a0988a39c0A44);
     address poolAddress;
     bytes32 poolId;
 
-    // Campaign campaign;
+    Campaign campaign;
 
     function setUp() public {
         // Mock $XRP and $ROOT
-        xrp = new Token("XRP token in TRN", "XRP");
-        root = new Token("Root token in TRN", "ROOT");
         xrpIndex = address(xrp) < address(root) ? 0 : 1;
         rootIndex = 1 - xrpIndex;
 
@@ -68,18 +70,18 @@ contract CampaignTest is Test {
         poolId = IBasePool(poolAddress).getPoolId();
 
         // Provide initial liquidity
-        IAsset[] memory joinAsset = new IAsset[](2);
-        joinAsset[xrpIndex] = IAsset(address(xrp));
-        joinAsset[rootIndex] = IAsset(address(root));
+        // IAsset[] memory joinAsset = new IAsset[](2);
+        // joinAsset[xrpIndex] = IAsset(address(xrp));
+        // joinAsset[rootIndex] = IAsset(address(root));
 
         // Create Campaign Contract
-        // campaign = new Campaign(
-        //     address(root),
-        //     address(xrp),
-        //     address(vault),
-        //     poolAddress,
-        //     poolId
-        // );
+        campaign = new Campaign(
+            address(root),
+            address(xrp),
+            address(vault),
+            poolAddress,
+            poolId
+        );
     }
 
     function test_Balance() public {
