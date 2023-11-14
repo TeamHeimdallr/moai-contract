@@ -112,7 +112,6 @@ contract CampaignTest is Test {
             address(this),
             request
         );
-        console.log(bpt.balanceOf(address(this)));
 
         // Create Campaign Contract
         campaign = new Campaign(
@@ -134,6 +133,9 @@ contract CampaignTest is Test {
 
         // provide reward
         bpt = TokenForTest(address(poolAddress));
+        // before provide reward
+        console.log(bpt.balanceOf(address(this)));
+
         bpt.approve(address(campaign), initialRewardAmount);
         campaign.provideRewards(initialRewardAmount);
     }
