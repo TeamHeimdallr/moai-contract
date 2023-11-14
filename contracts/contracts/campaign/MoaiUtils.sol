@@ -14,6 +14,23 @@ contract MoaiUtils {
     uint public xrpIndex;
     uint public rootIndex;
 
+    event SwapRootToXrp(
+        address indexed sender,
+        uint amountRootIn,
+        uint amountXrpOut
+    );
+    event JoinPool(
+        address indexed sender,
+        uint amountXrp,
+        uint amountRoot,
+        uint amountBPT
+    );
+    event ExitPool(
+        address indexed recipient,
+        uint amountBPT,
+        uint exitAssetIndex
+    );
+
     function _swapRootToXrp(uint amountRootIn) internal returns (uint xrpOut) {
         IVault.SingleSwap memory singleSwap = IVault.SingleSwap({
             poolId: moaiPoolId,
@@ -38,7 +55,7 @@ contract MoaiUtils {
             block.timestamp + 1 days
         );
 
-        return xrpOut;
+        emit SwapRootToXrp(msg.sender, amountRootIn, xrpOut);
     }
 
     function _joinPool(
@@ -80,6 +97,7 @@ contract MoaiUtils {
         );
 
         joinedBPT = amountBPTAfterJoin - amountBPTBeforeJoin;
+        emit JoinPool(msg.sender, amountXrp, amountRoot, joinedBPT);
     }
 
     function _exitPool(
@@ -114,5 +132,7 @@ contract MoaiUtils {
             payable(recipient),
             request
         );
+
+        emit ExitPool(recipient, exitBPTAmount, exitAssetIndex);
     }
 }
