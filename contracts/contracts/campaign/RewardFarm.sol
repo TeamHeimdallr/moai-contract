@@ -175,8 +175,8 @@ contract RewardFarm {
 
     // Provide farm reward with $XRP-$ROOT BPT
     function provideRewards(uint amount) external {
-        IERC20(rewardTokenAddr).transferFrom(msg.sender, address(this), amount);
         rewardPool += amount;
+        IERC20(rewardTokenAddr).transferFrom(msg.sender, address(this), amount);
 
         emit ProvideRewards(msg.sender, amount, rewardPool);
     }
