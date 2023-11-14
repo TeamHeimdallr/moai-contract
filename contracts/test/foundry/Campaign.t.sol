@@ -44,7 +44,7 @@ contract CampaignTest is Test {
     uint endTime;
 
     Campaign campaign;
-    TokenForTest bpt;
+    IERC20 bpt;
 
     function setUp() public {
         // Mock $XRP and $ROOT
@@ -132,7 +132,7 @@ contract CampaignTest is Test {
         campaign.supportLiquidity(initialRootLiquiditySupport);
 
         // provide reward
-        bpt = TokenForTest(address(poolAddress));
+        bpt = IERC20(poolAddress);
         // before provide reward
         console.log(bpt.balanceOf(address(this)));
 
@@ -140,7 +140,7 @@ contract CampaignTest is Test {
         campaign.provideRewards(initialRewardAmount);
     }
 
-    function test_poolBalance() public view {
+    function test_PoolBalance() public view {
         IERC20[] memory poolTokens;
         uint[] memory poolTokenBalances;
         uint _lastChangeBlock;
@@ -148,7 +148,6 @@ contract CampaignTest is Test {
             address(vault)
         ).getPoolTokens(poolId);
 
-        console.log(poolTokenBalances[0], poolTokenBalances[1]);
         require(
             poolTokenBalances[0] == initialJoinAmount,
             "pool 0 balance is not correct"
@@ -159,19 +158,16 @@ contract CampaignTest is Test {
         );
     }
 
-    function test_rewardTime() public view {
+    function test_RewardTime() public view {
         uint startTime_ = campaign.rewardStartTime();
         uint endTime_ = campaign.rewardEndTime();
-
-        console.log(startTime_, endTime_);
 
         require(startTime == startTime_, "reward start time is not correct");
         require(endTime == endTime_, "reward end time is not correct");
     }
 
-    function test_liquiditySupport() public view {
+    function test_LiquiditySupport() public view {
         uint liquiditySupport = campaign.liquiditySupport();
-        console.log(liquiditySupport);
 
         require(
             liquiditySupport == initialRootLiquiditySupport,
@@ -179,9 +175,8 @@ contract CampaignTest is Test {
         );
     }
 
-    function test_provideReward() public view {
+    function test_ProvideReward() public view {
         uint rewardPool = campaign.rewardPool();
-        console.log(rewardPool);
 
         require(
             rewardPool == initialRewardAmount,
@@ -189,7 +184,6 @@ contract CampaignTest is Test {
         );
 
         uint rewardBalance = bpt.balanceOf(address(campaign));
-        console.log(rewardBalance);
         require(
             rewardBalance == initialRewardAmount,
             "reward balance is not correct"
