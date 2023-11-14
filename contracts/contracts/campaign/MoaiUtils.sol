@@ -6,15 +6,17 @@ import "@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
 import "@balancer-labs/v2-interfaces/contracts/pool-weighted/WeightedPoolUserData.sol";
 
 contract MoaiUtils {
-    function _swapRootToXrp(
-        bytes32 poolId,
-        address vaultAddr,
-        address rootTokenAddr,
-        address xrpTokenAddr,
-        uint amountRootIn
-    ) internal returns (uint xrpOut) {
+    address public rootTokenAddr;
+    address public xrpTokenAddr;
+    address public moaiVaultAddr;
+    address public xrpRootBptAddr;
+    bytes32 public moaiPoolId;
+    uint public xrpIndex;
+    uint public rootIndex;
+
+    function _swapRootToXrp(uint amountRootIn) internal returns (uint xrpOut) {
         IVault.SingleSwap memory singleSwap = IVault.SingleSwap({
-            poolId: poolId,
+            poolId: moaiPoolId,
             kind: IVault.SwapKind.GIVEN_IN,
             assetIn: IAsset(rootTokenAddr),
             assetOut: IAsset(xrpTokenAddr),
@@ -29,7 +31,7 @@ contract MoaiUtils {
             toInternalBalance: false
         });
 
-        xrpOut = IVault(vaultAddr).swap(
+        xrpOut = IVault(moaiVaultAddr).swap(
             singleSwap,
             funds,
             0,
@@ -40,13 +42,6 @@ contract MoaiUtils {
     }
 
     function _joinPool(
-        bytes32 poolId,
-        address vaultAddr,
-        uint rootIndex,
-        uint xrpIndex,
-        address bptAddr,
-        address rootTokenAddr,
-        address xrpTokenAddr,
         uint amountRoot,
         uint amountXrp
     ) internal returns (uint joinedBPT) {
@@ -71,26 +66,23 @@ contract MoaiUtils {
             fromInternalBalance: false
         });
 
-        uint amountBPTBeforeJoin = IERC20(bptAddr).balanceOf(address(this));
-        IVault(vaultAddr).joinPool(
-            poolId,
+        uint amountBPTBeforeJoin = IERC20(xrpRootBptAddr).balanceOf(
+            address(this)
+        );
+        IVault(moaiVaultAddr).joinPool(
+            moaiPoolId,
             address(this),
             address(this),
             request
         );
-        uint amountBPTAfterJoin = IERC20(bptAddr).balanceOf(address(this));
+        uint amountBPTAfterJoin = IERC20(xrpRootBptAddr).balanceOf(
+            address(this)
+        );
 
         joinedBPT = amountBPTAfterJoin - amountBPTBeforeJoin;
     }
 
     function _exitPool(
-        bytes32 poolId,
-        address vaultAddr,
-        uint rootIndex,
-        uint xrpIndex,
-        address bptAddr,
-        address rootTokenAddr,
-        address xrpTokenAddr,
         uint exitBPTAmount,
         uint exitAssetIndex,
         address recipient
@@ -116,8 +108,8 @@ contract MoaiUtils {
             toInternalBalance: false
         });
 
-        IVault(vaultAddr).exitPool(
-            poolId,
+        IVault(moaiVaultAddr).exitPool(
+            moaiPoolId,
             address(this),
             payable(recipient),
             request

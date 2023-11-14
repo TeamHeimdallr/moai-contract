@@ -6,14 +6,6 @@ import "@balancer-labs/v2-interfaces/contracts/vault/IVault.sol";
 import "./MoaiUtils.sol";
 
 contract Campaign is MoaiUtils {
-    address public rootTokenAddr;
-    address public xrpTokenAddr;
-    address public moaiVaultAddr;
-    address public xrpRootBptAddr;
-    bytes32 public moaiPoolId;
-    uint public xrpIndex;
-    uint public rootIndex;
-
     // Configurations
     uint public apr = 70000; // 100% = 1000000, 1e6
     // User can't withdraw its deposit before 'userLockupPeriod' has passed since its last deposit
@@ -210,13 +202,7 @@ contract Campaign is MoaiUtils {
                 amountRootIn
             );
 
-            uint xrpOut = _swapRootToXrp(
-                moaiPoolId,
-                moaiVaultAddr,
-                rootTokenAddr,
-                xrpTokenAddr,
-                amountRootIn
-            );
+            uint xrpOut = _swapRootToXrp(amountRootIn);
             emit SwapRootToXrp(msg.sender, amountRootIn, xrpOut);
             amountXrp += xrpOut;
         }
@@ -246,17 +232,7 @@ contract Campaign is MoaiUtils {
             "Campaign: Not enough supported ROOT liquidity"
         );
 
-        uint amountBPT = _joinPool(
-            moaiPoolId,
-            moaiVaultAddr,
-            rootIndex,
-            xrpIndex,
-            xrpRootBptAddr,
-            rootTokenAddr,
-            xrpTokenAddr,
-            pairedAmountRoot,
-            amountXrp
-        );
+        uint amountBPT = _joinPool(pairedAmountRoot, amountXrp);
         emit JoinPool(msg.sender, amountXrp, pairedAmountRoot, amountBPT);
         liquiditySupport -= pairedAmountRoot;
 
@@ -276,18 +252,7 @@ contract Campaign is MoaiUtils {
         uint amountToBeFreed = _unfarm(amount);
 
         // user
-        _exitPool(
-            moaiPoolId,
-            moaiVaultAddr,
-            rootIndex,
-            xrpIndex,
-            xrpRootBptAddr,
-            rootTokenAddr,
-            xrpTokenAddr,
-            amount,
-            xrpIndex,
-            msg.sender
-        );
+        _exitPool(amount, xrpIndex, msg.sender);
         emit ExitPool(msg.sender, amount, xrpIndex);
 
         // freed supported root
@@ -295,18 +260,7 @@ contract Campaign is MoaiUtils {
             uint beforeRootAmount = IERC20(rootTokenAddr).balanceOf(
                 address(this)
             );
-            _exitPool(
-                moaiPoolId,
-                moaiVaultAddr,
-                rootIndex,
-                xrpIndex,
-                xrpRootBptAddr,
-                rootTokenAddr,
-                xrpTokenAddr,
-                amountToBeFreed,
-                rootIndex,
-                address(this)
-            );
+            _exitPool(amountToBeFreed, rootIndex, address(this));
             emit ExitPool(address(this), amountToBeFreed, rootIndex);
             uint afterRootAmount = IERC20(rootTokenAddr).balanceOf(
                 address(this)
@@ -320,18 +274,7 @@ contract Campaign is MoaiUtils {
         require(rewardAmount > 0, "Campaign: No rewards to claim");
 
         uint beforeRootAmount = IERC20(rootTokenAddr).balanceOf(msg.sender);
-        _exitPool(
-            moaiPoolId,
-            moaiVaultAddr,
-            rootIndex,
-            xrpIndex,
-            xrpRootBptAddr,
-            rootTokenAddr,
-            xrpTokenAddr,
-            rewardAmount,
-            rootIndex,
-            msg.sender
-        );
+        _exitPool(rewardAmount, rootIndex, msg.sender);
         emit ExitPool(msg.sender, rewardAmount, rootIndex);
         uint afterRootAmount = IERC20(rootTokenAddr).balanceOf(msg.sender);
 
