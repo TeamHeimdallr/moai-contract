@@ -15,11 +15,11 @@ if (!privateKey) {
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.7.1",
+    compilers: [{ version: "0.7.1" }, { version: "0.8.19" }],
     settings: {
       optimizer: {
         enabled: true,
-        runs: 1,
+        runs: 500,
       },
     },
   },
