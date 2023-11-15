@@ -34,20 +34,51 @@ contract ClaimTest is CampaignTestSetup {
             (campaign.rewardEndTime() + campaign.rewardStartTime()) / 2
         );
 
-        // get current BPT being farmed
-        (uint amountFarmed, , , , ) = campaign.farms(alice);
+        (
+            uint amountFarmed,
+            ,
+            uint unclaimedRewards,
+            uint lastRewardTime,
+            uint depositedTime
+        ) = campaign.farms(alice);
+        assertEq(unclaimedRewards, 0);
+        assertEq(lastRewardTime, block.timestamp);
 
         vm.warp(campaign.rewardEndTime());
+        (Campaign.Farm memory farmSimulated, , , ) = campaign.simulateAccrue(
+            alice
+        );
+
+        assertEq(amountFarmed, farmSimulated.amountFarmed);
+        assertEq(farmSimulated.lastRewardTime, block.timestamp);
+        assertEq(depositedTime, farmSimulated.depositedTime);
+
+        uint expectedReward = (((amountFarmed * campaign.apr()) / 1e6) *
+            (campaign.rewardEndTime() - campaign.rewardStartTime())) /
+            2 /
+            365 days;
+
+        assertEq(farmSimulated.unclaimedRewards, expectedReward);
+
         vm.startPrank(alice);
         uint originalCampaignBpt = bpt.balanceOf(address(campaign));
         campaign.claim();
         assertEq(
             originalCampaignBpt - bpt.balanceOf(address(campaign)),
-            (((amountFarmed * campaign.apr()) / 1e6) *
-                (campaign.rewardEndTime() - campaign.rewardStartTime())) /
-                2 /
-                365 days
+            expectedReward
         );
+
+        (
+            uint amountFarmedAfterClaim,
+            ,
+            uint unclaimedRewardsAfterClaim,
+            uint lastRewardTimeAfterClaim,
+            uint depositedTimeAfterClaim
+        ) = campaign.farms(alice);
+        assertEq(amountFarmed, amountFarmedAfterClaim);
+        assertEq(unclaimedRewardsAfterClaim, 0);
+        assertEq(lastRewardTimeAfterClaim, block.timestamp);
+        assertEq(depositedTime, depositedTimeAfterClaim);
     }
 
     // TODO : this should be passed!
