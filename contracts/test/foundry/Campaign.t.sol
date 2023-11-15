@@ -37,16 +37,16 @@ contract CampaignTest is Test {
         IWeightedPoolFactory(0x1CFE9102cA4291e358B81221757a0988a39c0A44);
     address poolAddress;
     bytes32 poolId;
-    uint initialJoinAmount = 1000 * 1e18;
-    uint initialRootLiquiditySupport = 100 * 1e18;
-    uint initialRewardAmount = 10 * 1e18;
+    uint initialJoinAmount = 1e6 * 1e18;
+    uint initialRootLiquiditySupport = 1e4 * 1e18;
+    uint initialRewardAmount = 1e3 * 1e18;
     uint startTime;
     uint endTime;
 
     Campaign campaign;
     IERC20 bpt;
 
-    function setUp() public {
+    function setUp() public virtual {
         // Mock $XRP and $ROOT
         xrpIndex = address(xrp) < address(root) ? 0 : 1;
         rootIndex = 1 - xrpIndex;
@@ -77,8 +77,8 @@ contract CampaignTest is Test {
         poolId = IBasePool(poolAddress).getPoolId();
 
         // faucet
-        xrp.faucet(address(this), 100000 * 1e18);
-        root.faucet(address(this), 100000 * 1e18);
+        xrp.faucet(address(this), 1e8 * 1e18);
+        root.faucet(address(this), 1e8 * 1e18);
 
         // approve
         xrp.approve(address(vault), initialJoinAmount);
