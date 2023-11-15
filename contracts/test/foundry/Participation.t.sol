@@ -3,10 +3,10 @@ pragma solidity ^0.8.19;
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 
-import "./Campaign.t.sol";
+import "./CampaignTestSetup.t.sol";
 import "@balancer-labs/v2-interfaces/contracts/solidity-utils/openzeppelin/IERC20.sol";
 
-contract ParticipateTest is CampaignTest {
+contract ParticipateTest is CampaignTestSetup {
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
 
@@ -44,7 +44,7 @@ contract ParticipateTest is CampaignTest {
         (
             uint amountFarmed,
             uint amountPairedBPTLocked,
-            uint _unclaimedRewards,
+            ,
             uint lastRewardTime,
             uint depositedTime
         ) = campaign.farms(alice);
@@ -84,11 +84,6 @@ contract ParticipateTest is CampaignTest {
 
         uint bptSupplyBeforeParticipate = bpt.totalSupply();
 
-        (
-            uint rootVaultAmountBefore,
-            uint xrpVaultAmountBefore
-        ) = _getVaultBalance();
-
         uint amountRootIn = 100 * 1e18;
         root.faucet(alice, amountRootIn * 2);
         root.approve(address(campaign), amountRootIn);
@@ -97,7 +92,7 @@ contract ParticipateTest is CampaignTest {
         (
             uint amountFarmed,
             uint amountPairedBPTLocked,
-            uint _unclaimedRewards,
+            ,
             uint lastRewardTime,
             uint depositedTime
         ) = campaign.farms(alice);
@@ -110,11 +105,6 @@ contract ParticipateTest is CampaignTest {
         uint mintedBpt = bptSupplyAfterParticipate - bptSupplyBeforeParticipate;
 
         assertEq(mintedBpt / 2, amountFarmed);
-
-        (
-            uint rootVaultAmountAfter,
-            uint xrpVaultAmountAfter
-        ) = _getVaultBalance();
 
         vm.stopPrank();
     }
