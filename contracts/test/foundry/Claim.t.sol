@@ -34,39 +34,63 @@ contract ClaimTest is CampaignTestSetup {
             (campaign.rewardEndTime() + campaign.rewardStartTime()) / 2
         );
 
-        // get current BPT being farmed
-        (uint amountFarmed, , , , ) = campaign.farms(alice);
+        (
+            uint amountFarmed,
+            ,
+            uint unclaimedRewards,
+            uint lastRewardTime,
+            uint depositedTime
+        ) = campaign.farms(alice);
+        assertEq(unclaimedRewards, 0);
+        assertEq(lastRewardTime, block.timestamp);
 
         vm.warp(campaign.rewardEndTime());
+        (Campaign.Farm memory farmSimulated, , , ) = campaign.simulateAccrue(
+            alice
+        );
+
+        assertEq(amountFarmed, farmSimulated.amountFarmed);
+        assertEq(farmSimulated.lastRewardTime, block.timestamp);
+        assertEq(depositedTime, farmSimulated.depositedTime);
+
+        uint expectedReward = (((amountFarmed * campaign.apr()) / 1e6) *
+            (campaign.rewardEndTime() - campaign.rewardStartTime())) /
+            2 /
+            365 days;
+
+        assertEq(farmSimulated.unclaimedRewards, expectedReward);
+
         vm.startPrank(alice);
         uint originalCampaignBpt = bpt.balanceOf(address(campaign));
         campaign.claim();
         assertEq(
             originalCampaignBpt - bpt.balanceOf(address(campaign)),
-            (((amountFarmed * campaign.apr()) / 1e6) *
-                (campaign.rewardEndTime() - campaign.rewardStartTime())) /
-                2 /
-                365 days
+            expectedReward
         );
+
+        (
+            uint amountFarmedAfterClaim,
+            ,
+            uint unclaimedRewardsAfterClaim,
+            uint lastRewardTimeAfterClaim,
+            uint depositedTimeAfterClaim
+        ) = campaign.farms(alice);
+        assertEq(amountFarmed, amountFarmedAfterClaim);
+        assertEq(unclaimedRewardsAfterClaim, 0);
+        assertEq(lastRewardTimeAfterClaim, block.timestamp);
+        assertEq(depositedTime, depositedTimeAfterClaim);
     }
 
-    // TODO : this should be passed!
-    function testFail_ClaimRewardNotAccumulatedAfterEndTime() public {
+    function test_ClaimRewardNotAccumulatedAfterEndTime() public {
         uint amountXrpIn = 1e2 * 1e18;
         _participate(
             alice,
             amountXrpIn,
             (campaign.rewardEndTime() + campaign.rewardStartTime()) / 2
         );
+        (uint amountFarmed, , , , ) = campaign.farms(alice);
 
-        _participate(
-            bob,
-            amountXrpIn,
-            (campaign.rewardEndTime() + campaign.rewardStartTime()) / 2
-        );
-
-        // Alice claims at reward ended
-        vm.warp(campaign.rewardEndTime());
+        vm.warp(campaign.rewardEndTime() + 1e9);
         vm.startPrank(alice);
         uint originalCampaignBptAlice = bpt.balanceOf(address(campaign));
         campaign.claim();
@@ -74,17 +98,13 @@ contract ClaimTest is CampaignTestSetup {
             bpt.balanceOf(address(campaign));
         vm.stopPrank();
 
-        // Bob claims after reward ended
-        vm.warp(campaign.rewardEndTime() + 1e9);
-        vm.startPrank(bob);
-        uint originalCampaignBptBob = bpt.balanceOf(address(campaign));
-        campaign.claim();
-        uint bobRewards = originalCampaignBptBob -
-            bpt.balanceOf(address(campaign));
-        vm.stopPrank();
+        // rewards should be given only for (max(claimedTime, rewardEndTime) - depositedTime)
+        uint expectedRewards = (((amountFarmed * campaign.apr()) / 1e6) *
+            (campaign.rewardEndTime() - campaign.rewardStartTime())) /
+            2 /
+            365 days;
 
-        // TODO : slightly different ... 110984271920968 and 110984271920964 ...
-        assertEq(aliceRewards, bobRewards);
+        assertEq(expectedRewards, aliceRewards);
     }
 
     function testFail_ClaimWithoutParticipation() public {
