@@ -15,12 +15,8 @@ contract ParticipateTest is CampaignTestSetup {
     }
 
     function _getVaultBalance() internal view returns (uint, uint) {
-        IERC20[] memory _poolTokens;
         uint[] memory poolTokenBalances;
-        uint _lastChangeBlock;
-        (_poolTokens, poolTokenBalances, _lastChangeBlock) = IVault(
-            address(vault)
-        ).getPoolTokens(poolId);
+        (, poolTokenBalances, ) = IVault(address(vault)).getPoolTokens(poolId);
 
         return (poolTokenBalances[rootIndex], poolTokenBalances[xrpIndex]);
     }
@@ -44,7 +40,7 @@ contract ParticipateTest is CampaignTestSetup {
         (
             uint amountFarmed,
             uint amountPairedBPTLocked,
-            ,
+            uint unclaimedReward,
             uint lastRewardTime,
             uint depositedTime
         ) = campaign.farms(alice);
@@ -52,6 +48,7 @@ contract ParticipateTest is CampaignTestSetup {
         assertEq(campaignStartTime + 1, depositedTime);
         assertEq(depositedTime, lastRewardTime);
         assertEq(0, amountPairedBPTLocked);
+        assertEq(0, unclaimedReward);
 
         uint bptSupplyAfterParticipate = bpt.totalSupply();
         uint mintedBpt = bptSupplyAfterParticipate - bptSupplyBeforeParticipate;
@@ -83,6 +80,10 @@ contract ParticipateTest is CampaignTestSetup {
         vm.warp(campaignStartTime + 1);
 
         uint bptSupplyBeforeParticipate = bpt.totalSupply();
+        (
+            uint rootVaultAmountBefore,
+            uint xrpVaultAmountBefore
+        ) = _getVaultBalance();
 
         uint amountRootIn = 100 * 1e18;
         root.faucet(alice, amountRootIn * 2);
@@ -92,7 +93,7 @@ contract ParticipateTest is CampaignTestSetup {
         (
             uint amountFarmed,
             uint amountPairedBPTLocked,
-            ,
+            uint unclaimedReward,
             uint lastRewardTime,
             uint depositedTime
         ) = campaign.farms(alice);
@@ -100,11 +101,28 @@ contract ParticipateTest is CampaignTestSetup {
         assertEq(campaignStartTime + 1, depositedTime);
         assertEq(depositedTime, lastRewardTime);
         assertEq(0, amountPairedBPTLocked);
+        assertEq(0, unclaimedReward);
 
         uint bptSupplyAfterParticipate = bpt.totalSupply();
         uint mintedBpt = bptSupplyAfterParticipate - bptSupplyBeforeParticipate;
 
         assertEq(mintedBpt / 2, amountFarmed);
+
+        (
+            uint rootVaultAmountAfter,
+            uint xrpVaultAmountAfter
+        ) = _getVaultBalance();
+
+        uint rootVaultAmountDiff = rootVaultAmountAfter - rootVaultAmountBefore;
+        uint xrpVaultAmountDiff = xrpVaultAmountAfter - xrpVaultAmountBefore;
+
+        uint liquiditySupportAfter = campaign.liquiditySupport();
+
+        assertEq(
+            rootVaultAmountDiff,
+            (initialRootLiquiditySupport - liquiditySupportAfter) + amountRootIn
+        );
+        assertGt(xrpVaultAmountDiff, 0);
 
         vm.stopPrank();
     }
