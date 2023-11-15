@@ -164,6 +164,52 @@ contract RewardFarm {
         additionalLockedLiquidity = additionalLockedLiquiditySimulated;
     }
 
+    function simulateAccrue(
+        address account
+    )
+        public
+        view
+        returns (
+            Farm memory farmSimulated,
+            uint rewardToBePaidSimulated,
+            uint rewardPoolSimulated,
+            uint additionalLockedLiquiditySimulated
+        )
+    {
+        farmSimulated = farms[account];
+        rewardToBePaidSimulated = rewardToBePaid;
+        rewardPoolSimulated = rewardPool;
+
+        if (
+            block.timestamp > rewardStartTime &&
+            farmSimulated.lastRewardTime < rewardEndTime
+        ) {
+            uint reward = (((farmSimulated.amountFarmed * apr) / 1e6) *
+                ((
+                    block.timestamp < rewardEndTime
+                        ? block.timestamp
+                        : rewardEndTime
+                ) -
+                    (
+                        farmSimulated.lastRewardTime > rewardStartTime
+                            ? farmSimulated.lastRewardTime
+                            : rewardStartTime
+                    ))) / 365 days;
+            farmSimulated.unclaimedRewards += reward;
+            rewardToBePaidSimulated = rewardToBePaid - reward;
+            rewardPoolSimulated = rewardPool - reward;
+            farmSimulated.lastRewardTime = block.timestamp;
+        }
+        if (
+            block.timestamp - farmSimulated.depositedTime >
+            periodToLockupLPSupport
+        ) {
+            additionalLockedLiquiditySimulated = (farmSimulated.amountFarmed -
+                farmSimulated.amountPairedBPTLocked);
+            farmSimulated.amountPairedBPTLocked = farmSimulated.amountFarmed;
+        }
+    }
+
     // Provide farm reward with $XRP-$ROOT BPT
     function provideRewards(uint amount) external {
         rewardPool += amount;
@@ -215,52 +261,5 @@ contract RewardFarm {
         uint newPeriodToLockupLPSupport
     ) external onlyRewardAdmin {
         periodToLockupLPSupport = newPeriodToLockupLPSupport;
-    }
-
-    function simulateAccrue(
-        address account
-    )
-        public
-        view
-        returns (
-            Farm memory farmSimulated,
-            uint rewardToBePaidSimulated,
-            uint rewardPoolSimulated,
-            uint additionalLockedLiquiditySimulated
-        )
-    {
-        farmSimulated = farms[account];
-        rewardToBePaidSimulated = rewardToBePaid;
-        rewardPoolSimulated = rewardPool;
-        additionalLockedLiquiditySimulated = 0;
-
-        if (
-            block.timestamp > rewardStartTime &&
-            farmSimulated.lastRewardTime < rewardEndTime
-        ) {
-            uint reward = (((farmSimulated.amountFarmed * apr) / 1e6) *
-                ((
-                    block.timestamp < rewardEndTime
-                        ? block.timestamp
-                        : rewardEndTime
-                ) -
-                    (
-                        farmSimulated.lastRewardTime > rewardStartTime
-                            ? farmSimulated.lastRewardTime
-                            : rewardStartTime
-                    ))) / 365 days;
-            farmSimulated.unclaimedRewards += reward;
-            rewardToBePaidSimulated = rewardToBePaid - reward;
-            rewardPoolSimulated = rewardPool - reward;
-            farmSimulated.lastRewardTime = block.timestamp;
-        }
-        if (
-            block.timestamp - farmSimulated.depositedTime >
-            periodToLockupLPSupport
-        ) {
-            additionalLockedLiquiditySimulated = (farmSimulated.amountFarmed -
-                farmSimulated.amountPairedBPTLocked);
-            farmSimulated.amountPairedBPTLocked = farmSimulated.amountFarmed;
-        }
     }
 }
