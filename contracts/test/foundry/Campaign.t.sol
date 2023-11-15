@@ -37,9 +37,9 @@ contract CampaignTest is Test {
         IWeightedPoolFactory(0x1CFE9102cA4291e358B81221757a0988a39c0A44);
     address poolAddress;
     bytes32 poolId;
-    uint initialJoinAmount = 1000000 * 1e18;
-    uint initialRootLiquiditySupport = 10000 * 1e18;
-    uint initialRewardAmount = 1000 * 1e18;
+    uint initialJoinAmount = 1e6 * 1e18;
+    uint initialRootLiquiditySupport = 1e4 * 1e18;
+    uint initialRewardAmount = 1e3 * 1e18;
     uint startTime;
     uint endTime;
 
@@ -77,8 +77,8 @@ contract CampaignTest is Test {
         poolId = IBasePool(poolAddress).getPoolId();
 
         // faucet
-        xrp.faucet(address(this), 100000000 * 1e18);
-        root.faucet(address(this), 100000000 * 1e18);
+        xrp.faucet(address(this), 1e8 * 1e18);
+        root.faucet(address(this), 1e8 * 1e18);
 
         // approve
         xrp.approve(address(vault), initialJoinAmount);
