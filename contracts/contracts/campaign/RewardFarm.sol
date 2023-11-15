@@ -230,6 +230,10 @@ contract RewardFarm {
     }
 
     function changeRewardAdmin(address newAdmin) external onlyRewardAdmin {
+        require(
+            farms[newAdmin].amountFarmed == 0,
+            "Campaign: New admin must not have a farm."
+        );
         rewardAdmin = newAdmin;
     }
 

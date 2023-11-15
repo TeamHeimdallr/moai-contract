@@ -70,6 +70,14 @@ contract Campaign is MoaiUtils, RewardFarm {
         _;
     }
 
+    modifier onlyNormalUser() {
+        require(
+            msg.sender != rootLiquidityAdmin && msg.sender != rewardAdmin,
+            "Campaign: Admins can't use functions for normal users."
+        );
+        _;
+    }
+
     event Participate(
         address indexed participant,
         uint amountXrpIn,
@@ -107,7 +115,10 @@ contract Campaign is MoaiUtils, RewardFarm {
             - Not directly interact with farm variables
     */
 
-    function participate(uint amountXrpIn, uint amountRootIn) external {
+    function participate(
+        uint amountXrpIn,
+        uint amountRootIn
+    ) external onlyNormalUser {
         uint amountXrp = amountXrpIn;
 
         require(
@@ -174,7 +185,7 @@ contract Campaign is MoaiUtils, RewardFarm {
         );
     }
 
-    function withdraw(uint amount) external {
+    function withdraw(uint amount) external onlyNormalUser {
         (uint amountToBeFreed, uint additionalLockedLiquidity) = _unfarm(
             amount
         );
@@ -196,7 +207,7 @@ contract Campaign is MoaiUtils, RewardFarm {
         }
     }
 
-    function claim() external {
+    function claim() external onlyNormalUser {
         (
             uint rewardAmount,
             uint additionalLockedLiquidity
@@ -222,6 +233,7 @@ contract Campaign is MoaiUtils, RewardFarm {
     function changeRootLiquidityAdmin(
         address newAdmin
     ) external onlyRootLiquidityAdmin {
+        require(farms[newAdmin].amountFarmed == 0, "Campaign: New admin must not have a farm.");
         rootLiquidityAdmin = newAdmin;
     }
 
