@@ -72,7 +72,7 @@ contract RewardFarm {
         );
         require(amount != 0, "Campaign: Farmed amount should not be zero");
         Farm storage farm = farms[msg.sender];
-        additionalLockedLiquidity = _accrue(farm);
+        additionalLockedLiquidity = _accrue(msg.sender);
         if (farm.amountFarmed == farm.amountPairedBPTLocked) {
             farm.depositedTime = block.timestamp;
         } else {
@@ -103,7 +103,7 @@ contract RewardFarm {
     ) internal returns (uint amountToBeFreed, uint additionalLockedLiquidity) {
         require(amount != 0, "Campaign: Unfarmed amount should not be zero");
         Farm storage farm = farms[msg.sender];
-        additionalLockedLiquidity = _accrue(farm);
+        additionalLockedLiquidity = _accrue(msg.sender);
         require(
             farm.amountFarmed >= amount,
             "Campaign: Not able to withdraw more than deposited"
@@ -138,39 +138,30 @@ contract RewardFarm {
         returns (uint amount, uint additionalLockedLiquidity)
     {
         Farm storage farm = farms[msg.sender];
-        additionalLockedLiquidity = _accrue(farm);
+        additionalLockedLiquidity = _accrue(msg.sender);
         amount = farm.unclaimedRewards;
         farm.unclaimedRewards = 0;
     }
 
     function _accrue(
-        Farm storage farm
+        address account
     ) internal returns (uint additionalLockedLiquidity) {
-        if (
-            block.timestamp > rewardStartTime &&
-            farm.lastRewardTime < rewardEndTime
-        ) {
-            uint reward = (((farm.amountFarmed * apr) / 1e6) *
-                ((
-                    block.timestamp < rewardEndTime
-                        ? block.timestamp
-                        : rewardEndTime
-                ) -
-                    (
-                        farm.lastRewardTime > rewardStartTime
-                            ? farm.lastRewardTime
-                            : rewardStartTime
-                    ))) / 365 days;
-            farm.unclaimedRewards += reward;
-            rewardToBePaid -= reward;
-            rewardPool -= reward;
-            farm.lastRewardTime = block.timestamp;
-        }
-        if (block.timestamp - farm.depositedTime > periodToLockupLPSupport) {
-            additionalLockedLiquidity = (farm.amountFarmed -
-                farm.amountPairedBPTLocked);
-            farm.amountPairedBPTLocked = farm.amountFarmed;
-        }
+        Farm storage farm = farms[account];
+
+        (
+            Farm memory farmSimulated,
+            uint rewardToBePaidSimulated,
+            uint rewardPoolSimulated,
+            uint additionalLockedLiquiditySimulated
+        ) = simulateAccrue(account);
+
+        farm.amountPairedBPTLocked = farmSimulated.amountPairedBPTLocked;
+        farm.lastRewardTime = farmSimulated.lastRewardTime;
+        farm.unclaimedRewards = farmSimulated.unclaimedRewards;
+
+        rewardToBePaid = rewardToBePaidSimulated;
+        rewardPool = rewardPoolSimulated;
+        additionalLockedLiquidity = additionalLockedLiquiditySimulated;
     }
 
     // Provide farm reward with $XRP-$ROOT BPT
@@ -224,5 +215,52 @@ contract RewardFarm {
         uint newPeriodToLockupLPSupport
     ) external onlyRewardAdmin {
         periodToLockupLPSupport = newPeriodToLockupLPSupport;
+    }
+
+    function simulateAccrue(
+        address account
+    )
+        public
+        view
+        returns (
+            Farm memory farmSimulated,
+            uint rewardToBePaidSimulated,
+            uint rewardPoolSimulated,
+            uint additionalLockedLiquiditySimulated
+        )
+    {
+        farmSimulated = farms[account];
+        rewardToBePaidSimulated = rewardToBePaid;
+        rewardPoolSimulated = rewardPool;
+        additionalLockedLiquiditySimulated = 0;
+
+        if (
+            block.timestamp > rewardStartTime &&
+            farmSimulated.lastRewardTime < rewardEndTime
+        ) {
+            uint reward = (((farmSimulated.amountFarmed * apr) / 1e6) *
+                ((
+                    block.timestamp < rewardEndTime
+                        ? block.timestamp
+                        : rewardEndTime
+                ) -
+                    (
+                        farmSimulated.lastRewardTime > rewardStartTime
+                            ? farmSimulated.lastRewardTime
+                            : rewardStartTime
+                    ))) / 365 days;
+            farmSimulated.unclaimedRewards += reward;
+            rewardToBePaidSimulated = rewardToBePaid - reward;
+            rewardPoolSimulated = rewardPool - reward;
+            farmSimulated.lastRewardTime = block.timestamp;
+        }
+        if (
+            block.timestamp - farmSimulated.depositedTime >
+            periodToLockupLPSupport
+        ) {
+            additionalLockedLiquiditySimulated = (farmSimulated.amountFarmed -
+                farmSimulated.amountPairedBPTLocked);
+            farmSimulated.amountPairedBPTLocked = farmSimulated.amountFarmed;
+        }
     }
 }

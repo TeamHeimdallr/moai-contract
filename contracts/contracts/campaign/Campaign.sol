@@ -256,48 +256,4 @@ contract Campaign is MoaiUtils, RewardFarm {
             lockedLiquidity
         );
     }
-
-    function simulateAccrue(
-        address account
-    )
-        external
-        view
-        returns (
-            Farm memory farmSimulated,
-            uint rewardToBePaidSimulated,
-            uint rewardPoolSimulated,
-            uint additionalLockedLiquiditySimulated
-        )
-    {
-        farmSimulated = farms[account];
-
-        if (
-            block.timestamp > rewardStartTime &&
-            farmSimulated.lastRewardTime < rewardEndTime
-        ) {
-            uint reward = (((farmSimulated.amountFarmed * apr) / 1e6) *
-                ((
-                    block.timestamp < rewardEndTime
-                        ? block.timestamp
-                        : rewardEndTime
-                ) -
-                    (
-                        farmSimulated.lastRewardTime > rewardStartTime
-                            ? farmSimulated.lastRewardTime
-                            : rewardStartTime
-                    ))) / 365 days;
-            farmSimulated.unclaimedRewards += reward;
-            rewardToBePaidSimulated = rewardToBePaid - reward;
-            rewardPoolSimulated = rewardPool - reward;
-            farmSimulated.lastRewardTime = block.timestamp;
-        }
-        if (
-            block.timestamp - farmSimulated.depositedTime >
-            periodToLockupLPSupport
-        ) {
-            additionalLockedLiquiditySimulated = (farmSimulated.amountFarmed -
-                farmSimulated.amountPairedBPTLocked);
-            farmSimulated.amountPairedBPTLocked = farmSimulated.amountFarmed;
-        }
-    }
 }
