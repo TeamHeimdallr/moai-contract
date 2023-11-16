@@ -34,10 +34,9 @@ contract Campaign is MoaiUtils, RewardFarm {
 
         IERC20[] memory poolTokens;
         uint[] memory poolTokenBalances;
-        uint _lastChangeBlock;
-        (poolTokens, poolTokenBalances, _lastChangeBlock) = IVault(
-            moaiVaultAddr
-        ).getPoolTokens(moaiPoolId);
+        (poolTokens, poolTokenBalances, ) = IVault(moaiVaultAddr).getPoolTokens(
+            moaiPoolId
+        );
 
         require(
             poolTokens.length == 2,
@@ -147,14 +146,8 @@ contract Campaign is MoaiUtils, RewardFarm {
 
         IERC20[] memory poolTokens;
         uint[] memory poolTokenBalances;
-        uint _lastChangeBlock;
-        (poolTokens, poolTokenBalances, _lastChangeBlock) = IVault(
-            moaiVaultAddr
-        ).getPoolTokens(moaiPoolId);
-
-        require(
-            poolTokens.length == 2 && poolTokenBalances.length == 2,
-            "Campaign: The pool should be XRP-ROOT pool"
+        (poolTokens, poolTokenBalances, ) = IVault(moaiVaultAddr).getPoolTokens(
+            moaiPoolId
         );
 
         require(
@@ -233,7 +226,10 @@ contract Campaign is MoaiUtils, RewardFarm {
     function changeRootLiquidityAdmin(
         address newAdmin
     ) external onlyRootLiquidityAdmin {
-        require(farms[newAdmin].amountFarmed == 0, "Campaign: New admin must not have a farm.");
+        require(
+            farms[newAdmin].amountFarmed == 0,
+            "Campaign: New admin must not have a farm."
+        );
         rootLiquidityAdmin = newAdmin;
     }
 
