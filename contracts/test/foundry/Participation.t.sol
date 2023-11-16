@@ -366,4 +366,18 @@ contract ParticipateTest is CampaignTestSetup {
         );
         assertEq(xrpVaultAmountDiff, (2 * amountXrpIn));
     }
+
+    function test_ParticipateAdmin() public {
+        uint amountXrpIn = 1 * 1e18;
+        uint amountRootIn = 0;
+        uint campaignStartTime = campaign.rewardStartTime();
+
+        _participate(
+            originalAdmin,
+            amountXrpIn,
+            amountRootIn,
+            campaignStartTime + 1,
+            bytes("Campaign: Admins can't use functions for normal users.")
+        );
+    }
 }
