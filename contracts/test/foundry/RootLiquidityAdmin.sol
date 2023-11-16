@@ -54,6 +54,14 @@ contract RootLiquidityAdminTest is CampaignTestSetup {
         campaign.changeRootLiquidityAdmin(bob);
     }
 
+    function test_ChangeRootLiquidityAdminWithFarmed() public {
+        _participate(alice, 1e18, campaign.rewardStartTime() + 1);
+        vm.stopPrank();
+        vm.startPrank(originalAdmin);
+        vm.expectRevert("Campaign: New admin must not have a farm.");
+        campaign.changeRootLiquidityAdmin(alice);
+    }
+
     function test_TakebackSupportAll() public {
         vm.startPrank(originalAdmin);
         uint amountRootBefore = root.balanceOf(originalAdmin);

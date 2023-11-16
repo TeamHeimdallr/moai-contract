@@ -107,7 +107,7 @@ contract ClaimTest is CampaignTestSetup {
         assertEq(expectedRewards, aliceRewards);
     }
 
-    function testFail_ClaimWithoutParticipation() public {
+    function test_ClaimWithoutParticipation() public {
         vm.warp((campaign.rewardEndTime() + campaign.rewardStartTime()) / 2);
         _participate(
             alice,
@@ -115,10 +115,11 @@ contract ClaimTest is CampaignTestSetup {
             (campaign.rewardEndTime() + campaign.rewardStartTime()) / 2
         );
         vm.startPrank(bob);
+        vm.expectRevert("Campaign: No rewards to claim");
         campaign.claim();
     }
 
-    function testFail_ClaimWithZeroReward() public {
+    function test_ClaimWithZeroReward() public {
         _participate(
             alice,
             1e2 * 1e18,
@@ -131,6 +132,7 @@ contract ClaimTest is CampaignTestSetup {
         vm.startPrank(alice);
         campaign.claim();
         // 2nd claim at the same time
+        vm.expectRevert("Campaign: No rewards to claim");
         campaign.claim();
     }
 }

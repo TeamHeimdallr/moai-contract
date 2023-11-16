@@ -150,11 +150,6 @@ contract Campaign is MoaiUtils, RewardFarm {
             moaiPoolId
         );
 
-        require(
-            poolTokenBalances[0] > 0 && poolTokenBalances[1] > 0,
-            "Campaign: The pool should have liquidity"
-        );
-
         uint pairedAmountRoot = (amountXrp * poolTokenBalances[rootIndex]) /
             (poolTokenBalances[xrpIndex]);
 
