@@ -27,6 +27,7 @@ interface TokenForTest is IERC20 {
 }
 
 contract CampaignTestSetup is Test {
+    address originalAdmin = makeAddr("originalAdmin");
     TokenForTest xrp = TokenForTest(0xEC6F4E813E7354BB0dFF603a7FA346a9efd5d509);
     TokenForTest root =
         TokenForTest(0xc2fe5fAd30d8289176f4371b2599b6412D2e1CC4);
@@ -47,6 +48,8 @@ contract CampaignTestSetup is Test {
     IERC20 bpt;
 
     function setUp() public virtual {
+        vm.startPrank(originalAdmin);
+
         // Mock $XRP and $ROOT
         xrpIndex = address(xrp) < address(root) ? 0 : 1;
         rootIndex = 1 - xrpIndex;
@@ -71,14 +74,14 @@ contract CampaignTestSetup is Test {
             weights,
             rateProviders,
             3000000000000000,
-            address(this),
+            originalAdmin,
             0x26504c2e4f5b39452f306c7a2b25763b7137415e2835535d58495865366a4724
         );
         poolId = IBasePool(poolAddress).getPoolId();
 
         // faucet
-        xrp.faucet(address(this), 1e8 * 1e18);
-        root.faucet(address(this), 1e8 * 1e18);
+        xrp.faucet(originalAdmin, 1e8 * 1e18);
+        root.faucet(originalAdmin, 1e8 * 1e18);
 
         // approve
         xrp.approve(address(vault), initialJoinAmount);
@@ -108,8 +111,8 @@ contract CampaignTestSetup is Test {
         // initial join
         IVault(address(vault)).joinPool(
             poolId,
-            address(this),
-            address(this),
+            originalAdmin,
+            originalAdmin,
             request
         );
 
@@ -137,5 +140,7 @@ contract CampaignTestSetup is Test {
 
         bpt.approve(address(campaign), initialRewardAmount);
         campaign.provideRewards(initialRewardAmount);
+
+        vm.stopPrank();
     }
 }
