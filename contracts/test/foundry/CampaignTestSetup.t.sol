@@ -124,7 +124,7 @@ contract CampaignTestSetup is Test {
 
         // change reward time
         startTime = block.timestamp;
-        endTime = startTime + 1000;
+        endTime = startTime + 90 days;
         campaign.changeRewardTime(startTime, endTime);
 
         // liquidity support
@@ -134,7 +134,6 @@ contract CampaignTestSetup is Test {
         // provide reward
         bpt = IERC20(poolAddress);
         // before provide reward
-        console.log(bpt.balanceOf(address(this)));
 
         bpt.approve(address(campaign), initialRewardAmount);
         campaign.provideRewards(initialRewardAmount);
