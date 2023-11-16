@@ -65,11 +65,12 @@ contract ParticipateTest is CampaignTestSetup {
     function _participate(
         address account,
         uint amountXrpIn,
-        uint amountRootIn
+        uint amountRootIn,
+        uint timestamp
     ) internal {
         address originalAddress = msg.sender;
         vm.startPrank(account);
-        vm.warp(campaign.rewardStartTime() + 1);
+        vm.warp(timestamp);
         if (amountXrpIn > 0) {
             xrp.faucet(account, amountXrpIn);
             xrp.approve(address(campaign), amountXrpIn);
@@ -94,7 +95,7 @@ contract ParticipateTest is CampaignTestSetup {
             uint amountXrpInVaultBefore
         ) = _getStatus();
 
-        _participate(alice, amountXrpIn, amountRootIn);
+        _participate(alice, amountXrpIn, amountRootIn, campaignStartTime + 1);
 
         Status memory status = _getStatusWithFarm(alice);
 
@@ -130,7 +131,7 @@ contract ParticipateTest is CampaignTestSetup {
             uint amountXrpInVaultBefore
         ) = _getStatus();
 
-        _participate(alice, amountXrpIn, amountRootIn);
+        _participate(alice, amountXrpIn, amountRootIn, campaignStartTime + 1);
 
         Status memory status = _getStatusWithFarm(alice);
 
@@ -166,7 +167,7 @@ contract ParticipateTest is CampaignTestSetup {
             uint amountXrpInVaultBefore
         ) = _getStatus();
 
-        _participate(alice, amountXrpIn, amountRootIn);
+        _participate(alice, amountXrpIn, amountRootIn, campaignStartTime + 1);
 
         Status memory status = _getStatusWithFarm(alice);
 
@@ -194,36 +195,32 @@ contract ParticipateTest is CampaignTestSetup {
         uint amountXrpIn = 0;
         uint amountRootIn = 0;
         uint campaignStartTime = campaign.rewardStartTime();
-        vm.warp(campaignStartTime + 1);
 
-        _participate(alice, amountXrpIn, amountRootIn);
+        _participate(alice, amountXrpIn, amountRootIn, campaignStartTime + 1);
     }
 
     function testFail_ParticipateBeforeRewardStart() public {
         uint amountXrpIn = 1e4 * 1e18;
         uint amountRootIn = 1e4 * 1e18;
         uint campaignStartTime = campaign.rewardStartTime();
-        vm.warp(campaignStartTime - 1);
 
-        _participate(alice, amountXrpIn, amountRootIn);
+        _participate(alice, amountXrpIn, amountRootIn, campaignStartTime - 1);
     }
 
     function testFail_ParticipateAfterRewardEnd() public {
         uint amountXrpIn = 1e4 * 1e18;
         uint amountRootIn = 1e4 * 1e18;
         uint campaignEndTime = campaign.rewardEndTime();
-        vm.warp(campaignEndTime + 1);
 
-        _participate(alice, amountXrpIn, amountRootIn);
+        _participate(alice, amountXrpIn, amountRootIn, campaignEndTime + 1);
     }
 
     function testFail_ParticipateNotEnoughLiquiditySupport() public {
         uint amountXrpIn = initialRootLiquiditySupport + 1e4 * 1e18;
         uint amountRootIn = 0;
         uint campaignStartTime = campaign.rewardStartTime();
-        vm.warp(campaignStartTime + 1);
 
-        _participate(alice, amountXrpIn, amountRootIn);
+        _participate(alice, amountXrpIn, amountRootIn, campaignStartTime + 1);
     }
 
     function testFail_ParticipateNotEnoughReward() public {
@@ -254,6 +251,57 @@ contract ParticipateTest is CampaignTestSetup {
         root.approve(address(campaign), amountXrpIn);
         campaign.supportLiquidity(amountXrpIn);
 
-        _participate(alice, amountXrpIn, amountRootIn);
+        _participate(alice, amountXrpIn, amountRootIn, campaignStartTime + 1);
+    }
+
+    function test_ParticipateTwice() public {
+        uint amountXrpIn = 71 * 1e18;
+        uint amountRootIn = 100 * 1e18;
+        uint campaignStartTime = campaign.rewardStartTime();
+        vm.warp(campaignStartTime + 1);
+
+        (
+            uint bptTotalSupplyBefore,
+            uint amountRootInVaultBefore,
+            uint amountXrpInVaultBefore
+        ) = _getStatus();
+
+        _participate(alice, amountXrpIn, amountRootIn, campaignStartTime + 1);
+        Status memory status1 = _getStatusWithFarm(alice);
+        // participate agian
+        vm.warp(campaignStartTime + 1000);
+        _participate(
+            alice,
+            amountXrpIn,
+            amountRootIn,
+            campaignStartTime + 1000
+        );
+
+        Status memory status2 = _getStatusWithFarm(alice);
+
+        // check status
+        uint mintedBpt1 = status1.bptTotalSupply - bptTotalSupplyBefore;
+        uint mintedBpt2 = status2.bptTotalSupply - status1.bptTotalSupply;
+        uint rootVaultAmountDiff = status2.amountRootInVault -
+            amountRootInVaultBefore;
+        uint xrpVaultAmountDiff = status2.amountXrpInVault -
+            amountXrpInVaultBefore;
+        uint liquiditySupportAfter = campaign.liquiditySupport();
+
+        uint expectedDepositedTime = status1.depositedTime +
+            ((block.timestamp - status1.depositedTime) *
+                (mintedBpt2 - mintedBpt2 / 2)) /
+            ((mintedBpt1 - mintedBpt1 / 2) + (mintedBpt2 - mintedBpt2 / 2));
+
+        assertEq(expectedDepositedTime, status2.depositedTime);
+        assertEq(block.timestamp, status2.lastRewardTime);
+        assertEq(0, status2.amountPairedBPTLocked);
+        assertEq((mintedBpt1 / 2) + (mintedBpt2 / 2), status2.amountFarmed);
+        assertEq(
+            rootVaultAmountDiff,
+            (initialRootLiquiditySupport - liquiditySupportAfter) +
+                (2 * amountRootIn)
+        );
+        assertEq(xrpVaultAmountDiff, (2 * amountXrpIn));
     }
 }
