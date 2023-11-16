@@ -115,6 +115,12 @@ contract WithdrawalTest is CampaignTestSetup {
             farmSimulatedAfterWithdrawal.unclaimedRewards,
             expectedRewards
         );
+
+        vm.expectRevert("Campaign: Unfarmed amount should not be zero");
+        campaign.withdraw(0);
+
+        vm.expectRevert("Campaign: Not able to withdraw more than deposited");
+        campaign.withdraw(type(uint256).max);
     }
 
     function test_WithdrawalWithPairLockedUp() public {

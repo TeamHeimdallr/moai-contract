@@ -70,7 +70,6 @@ contract RewardFarm {
                 block.timestamp < rewardEndTime,
             "Campaign: Not started or already ended"
         );
-        require(amount != 0, "Campaign: Farmed amount should not be zero");
         Farm storage farm = farms[msg.sender];
         additionalLockedLiquidity = _accrue(msg.sender);
         if (farm.amountFarmed == farm.amountPairedBPTLocked) {
