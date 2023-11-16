@@ -218,6 +218,7 @@ contract RewardFarm {
         emit ProvideRewards(msg.sender, amount, rewardPool);
     }
 
+    // Note) some farmers can't receive rewards after reward withdrawal.
     function withdrawRewards(uint amount) external onlyRewardAdmin {
         require(
             rewardPool >= amount,
@@ -229,16 +230,8 @@ contract RewardFarm {
         emit WithdrawRewards(msg.sender, amount, rewardPool);
     }
 
-    function changeRewardAdmin(address newAdmin) external onlyRewardAdmin {
-        require(
-            farms[newAdmin].amountFarmed == 0,
-            "Campaign: New admin must not have a farm."
-        );
-        rewardAdmin = newAdmin;
-    }
-
     function changeApr(uint newApr) external onlyRewardAdmin {
-        rewardPool = (rewardPool * newApr) / apr;
+        require(newApr > 0, "RewardFarm: apr should not be 0");
         rewardToBePaid = (rewardToBePaid * newApr) / apr;
         apr = newApr;
     }
@@ -265,5 +258,13 @@ contract RewardFarm {
         uint newPeriodToLockupLPSupport
     ) external onlyRewardAdmin {
         periodToLockupLPSupport = newPeriodToLockupLPSupport;
+    }
+
+    function changeRewardAdmin(address newAdmin) external onlyRewardAdmin {
+        require(
+            farms[newAdmin].amountFarmed == 0,
+            "Campaign: New admin must not have a farm."
+        );
+        rewardAdmin = newAdmin;
     }
 }
