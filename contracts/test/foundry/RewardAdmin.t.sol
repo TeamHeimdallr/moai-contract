@@ -28,6 +28,17 @@ contract RewardAdmin is CampaignTestSetup {
         vm.prank(alice);
         campaign.withdrawRewards(1);
         assertTrue(bpt.balanceOf(alice) == 1);
+
+        // New admin must not have a farm
+        vm.startPrank(rewardAdmin);
+        uint amountXrp = 1e20;
+        xrp.faucet(rewardAdmin, amountXrp);
+        xrp.approve(address(campaign), amountXrp);
+        campaign.participate(amountXrp, 0);
+
+        vm.startPrank(alice);
+        vm.expectRevert("Campaign: New admin must not have a farm.");
+        campaign.changeRewardAdmin(rewardAdmin);
     }
 
     function test_ProvideMoreRewards() public {
@@ -90,6 +101,9 @@ contract RewardAdmin is CampaignTestSetup {
         campaign.withdrawRewards(originalRewardPool / 2);
         assertEq(campaign.rewardPool(), originalRewardPool / 2);
         assertEq(bpt.balanceOf(rewardAdmin), originalRewardPool / 2);
+
+        vm.expectRevert("Campaign: Not enough reward pool to withdraw");
+        campaign.withdrawRewards(type(uint256).max);
         vm.stopPrank();
     }
 
@@ -112,6 +126,11 @@ contract RewardAdmin is CampaignTestSetup {
         xrp.approve(address(campaign), amountXrp);
         vm.expectRevert("Campaign: Farming cap is full");
         campaign.participate(amountXrp, 0);
+
+        // 0 APR is impossible
+        vm.expectRevert("RewardFarm: apr should not be 0");
+        vm.startPrank(rewardAdmin);
+        campaign.changeApr(0);
     }
 
     function test_ChangeUserLockupPeriod() public {
@@ -138,5 +157,79 @@ contract RewardAdmin is CampaignTestSetup {
         campaign.withdraw(1);
     }
 
-    // function test_ChangeRewardTime() public {}
+    function test_ChangeRewardTime() public {
+        vm.startPrank(alice);
+        uint amountXrp = 1e18;
+        xrp.faucet(alice, amountXrp);
+        xrp.approve(address(campaign), amountXrp);
+        campaign.participate(amountXrp, 0);
+
+        vm.startPrank(rewardAdmin);
+        campaign.changeRewardTime(
+            block.timestamp + 1,
+            campaign.rewardEndTime()
+        );
+        assertEq(campaign.rewardStartTime(), block.timestamp + 1);
+
+        vm.startPrank(alice);
+        xrp.faucet(alice, amountXrp);
+        xrp.approve(address(campaign), amountXrp);
+        vm.expectRevert("Campaign: Not started or already ended");
+        campaign.participate(amountXrp, 0);
+
+        // end time should be greater than start time
+        vm.startPrank(rewardAdmin);
+        vm.expectRevert(
+            "Campaign: new start time should be ealier than new end time"
+        );
+        campaign.changeRewardTime(block.timestamp + 10, block.timestamp + 9);
+    }
+
+    function test_ChangePeriodToLockupLPSupport() public {
+        vm.startPrank(alice);
+        uint amountXrp = 1e18;
+        xrp.faucet(alice, amountXrp);
+        xrp.approve(address(campaign), amountXrp);
+        campaign.participate(amountXrp, 0);
+
+        uint originalPeriodToLockupLPSupport = campaign
+            .periodToLockupLPSupport();
+
+        vm.warp(block.timestamp + originalPeriodToLockupLPSupport / 2 + 1);
+
+        (
+            Campaign.Farm memory farmSimulated,
+            ,
+            ,
+            uint additionalLockedLiquiditySimulated
+        ) = campaign.simulateAccrue(alice);
+
+        assertEq(farmSimulated.amountPairedBPTLocked, 0);
+        assertEq(additionalLockedLiquiditySimulated, 0);
+
+        vm.startPrank(rewardAdmin);
+        campaign.changePeriodToLockupLPSupport(
+            originalPeriodToLockupLPSupport / 2
+        );
+
+        assertEq(
+            campaign.periodToLockupLPSupport(),
+            originalPeriodToLockupLPSupport / 2
+        );
+
+        (
+            Campaign.Farm memory farmSimulatedAfterUpdate,
+            ,
+            ,
+            uint additionalLockedLiquiditySimulatedAfterUpdate
+        ) = campaign.simulateAccrue(alice);
+        assertEq(
+            farmSimulatedAfterUpdate.amountFarmed,
+            farmSimulatedAfterUpdate.amountPairedBPTLocked
+        );
+        assertEq(
+            farmSimulatedAfterUpdate.amountFarmed,
+            additionalLockedLiquiditySimulatedAfterUpdate
+        );
+    }
 }

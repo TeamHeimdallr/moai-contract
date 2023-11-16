@@ -295,8 +295,10 @@ contract ParticipateTest is CampaignTestSetup {
             amountXrpInVaultBefore) / bptTotalSupplyBefore) + (eps);
 
         // add more liquidity support
+        vm.startPrank(originalAdmin);
         root.approve(address(campaign), amountXrpIn);
         campaign.supportLiquidity(amountXrpIn);
+        vm.stopPrank();
 
         _participate(
             alice,
