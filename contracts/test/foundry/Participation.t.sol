@@ -225,4 +225,35 @@ contract ParticipateTest is CampaignTestSetup {
 
         _participate(alice, amountXrpIn, amountRootIn);
     }
+
+    function testFail_ParticipateNotEnoughReward() public {
+        uint amountRootIn = 0;
+        uint campaignStartTime = campaign.rewardStartTime();
+        vm.warp(campaignStartTime + 1);
+
+        uint currentRewardToBePaid = campaign.rewardToBePaid();
+        uint remainedRewardToBePaid = campaign.rewardPool() -
+            currentRewardToBePaid;
+        uint maximumFarmingAmountBpt = (1e6 *
+            ((remainedRewardToBePaid * 365 days) /
+                (campaign.rewardEndTime() - (campaignStartTime + 1)))) /
+            campaign.apr();
+
+        (
+            uint bptTotalSupplyBefore,
+            ,
+            uint amountXrpInVaultBefore
+        ) = _getStatus();
+
+        uint eps = 1e18;
+        uint amountXrpIn = ((2 *
+            maximumFarmingAmountBpt *
+            amountXrpInVaultBefore) / bptTotalSupplyBefore) + (eps);
+
+        // add more liquidity support
+        root.approve(address(campaign), amountXrpIn);
+        campaign.supportLiquidity(amountXrpIn);
+
+        _participate(alice, amountXrpIn, amountRootIn);
+    }
 }
