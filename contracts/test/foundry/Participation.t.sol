@@ -189,4 +189,40 @@ contract ParticipateTest is CampaignTestSetup {
         );
         assertEq(xrpVaultAmountDiff, amountXrpIn);
     }
+
+    function testFail_ParticipateZeroAmount() public {
+        uint amountXrpIn = 0;
+        uint amountRootIn = 0;
+        uint campaignStartTime = campaign.rewardStartTime();
+        vm.warp(campaignStartTime + 1);
+
+        _participate(alice, amountXrpIn, amountRootIn);
+    }
+
+    function testFail_ParticipateBeforeRewardStart() public {
+        uint amountXrpIn = 1e4 * 1e18;
+        uint amountRootIn = 1e4 * 1e18;
+        uint campaignStartTime = campaign.rewardStartTime();
+        vm.warp(campaignStartTime - 1);
+
+        _participate(alice, amountXrpIn, amountRootIn);
+    }
+
+    function testFail_ParticipateAfterRewardEnd() public {
+        uint amountXrpIn = 1e4 * 1e18;
+        uint amountRootIn = 1e4 * 1e18;
+        uint campaignEndTime = campaign.rewardEndTime();
+        vm.warp(campaignEndTime + 1);
+
+        _participate(alice, amountXrpIn, amountRootIn);
+    }
+
+    function testFail_ParticipateNotEnoughLiquiditySupport() public {
+        uint amountXrpIn = initialRootLiquiditySupport + 1e4 * 1e18;
+        uint amountRootIn = 0;
+        uint campaignStartTime = campaign.rewardStartTime();
+        vm.warp(campaignStartTime + 1);
+
+        _participate(alice, amountXrpIn, amountRootIn);
+    }
 }
