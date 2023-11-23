@@ -73,6 +73,7 @@ contract PoolInfoAggregator {
             IBaseWeightedPool pool = IBaseWeightedPool(poolAddress);
             swapFees[i] = pool.getSwapFeePercentage();
             weights[i] = pool.getNormalizedWeights();
+            totalShares[i] = IERC20(poolAddress).totalSupply();
         }
     }
 }
