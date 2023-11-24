@@ -25,6 +25,12 @@ const config: HardhatUserConfig = {
   defaultNetwork: "porcini",
   networks: {
     hardhat: {},
+    root: {
+      blockGasLimit: 0x1fffffffffffff,
+      allowUnlimitedContractSize: true,
+      url: "https://root.rootnet.live/archive",
+      accounts: [privateKey],
+    },
     porcini: {
       allowUnlimitedContractSize: true,
       url: "https://porcini.rootnet.app/archive",

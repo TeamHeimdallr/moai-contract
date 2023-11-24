@@ -330,6 +330,14 @@ export default {
   etherscan: {
     customChains: [
       {
+        network: 'root',
+        chainId: 7668,
+        urls: {
+          apiURL: 'https://root.rootnet.live/archive',
+          browserURL: 'https://',
+        },
+      },
+      {
         network: 'zkemv',
         chainId: 1101,
         urls: {

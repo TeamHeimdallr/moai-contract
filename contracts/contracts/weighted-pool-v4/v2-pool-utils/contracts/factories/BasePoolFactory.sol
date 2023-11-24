@@ -19,7 +19,6 @@ import "../../../v2-interfaces/contracts/vault/IVault.sol";
 import "../../../v2-interfaces/contracts/standalone-utils/IProtocolFeePercentagesProvider.sol";
 import "../../../v2-interfaces/contracts/pool-utils/IBasePoolFactory.sol";
 import "../../../v2-solidity-utils/contracts/helpers/BaseSplitCodeFactory.sol";
-import "../../../v2-solidity-utils/contracts/helpers/SingletonAuthentication.sol";
 
 /**
  * @notice Base contract for Pool factories.
@@ -35,24 +34,19 @@ import "../../../v2-solidity-utils/contracts/helpers/SingletonAuthentication.sol
  * become increasingly important. Governance can deprecate a factory by calling `disable`, which will permanently
  * prevent the creation of any future pools from the factory.
  */
-abstract contract BasePoolFactory is
-    IBasePoolFactory,
-    BaseSplitCodeFactory,
-    SingletonAuthentication
-{
+abstract contract BasePoolFactory is IBasePoolFactory, BaseSplitCodeFactory {
     IProtocolFeePercentagesProvider private immutable _protocolFeeProvider;
 
     mapping(address => bool) private _isPoolFromFactory;
-    bool private _disabled;
 
     event PoolCreated(address indexed pool);
     event FactoryDisabled();
 
     constructor(
-        IVault vault,
+        IVault _vault,
         IProtocolFeePercentagesProvider protocolFeeProvider,
         bytes memory creationCode
-    ) BaseSplitCodeFactory(creationCode) SingletonAuthentication(vault) {
+    ) BaseSplitCodeFactory(creationCode) {
         _protocolFeeProvider = protocolFeeProvider;
     }
 
@@ -60,22 +54,6 @@ abstract contract BasePoolFactory is
         address pool
     ) external view override returns (bool) {
         return _isPoolFromFactory[pool];
-    }
-
-    function isDisabled() public view override returns (bool) {
-        return _disabled;
-    }
-
-    function disable() external override authenticate {
-        _ensureEnabled();
-
-        _disabled = true;
-
-        emit FactoryDisabled();
-    }
-
-    function _ensureEnabled() internal view {
-        _require(!isDisabled(), Errors.DISABLED);
     }
 
     function getProtocolFeePercentagesProvider()
@@ -90,8 +68,6 @@ abstract contract BasePoolFactory is
         bytes memory constructorArgs,
         bytes32 salt
     ) internal virtual override returns (address) {
-        _ensureEnabled();
-
         address pool = super._create(constructorArgs, salt);
 
         _isPoolFromFactory[pool] = true;
