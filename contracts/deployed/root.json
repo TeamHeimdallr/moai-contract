@@ -1,0 +1,11 @@
+{
+  "Authorizer": "0x0780A78f400bad5b0349FF00D222aef8BB6BAb35",
+  "WXRP9": "0x122CAC01f06B15F8eF9b45068B4288b2033c554f",
+  "Vault": "0xF5bB92ea0f82E01F890ad82AbbECE7B721fC780b",
+  "ProtocolFeesCollector": "0x5f7748322dF3DCbf5009151edC18ad7BC774829C",
+  "BalancerHelpers": "0xEE65e4fEc04781241A801A83863E4bD5ee80f9dA",
+  "ProtocolFeePercentagesProvider": "0x41F776D8fA56472fEe751593b313BF4103e2f586",
+  "WeightedPoolFactory": "0x004bE47F0608d9a28dB484c043bf732f4BaFCa4D",
+  "PoolInfoAggregator": "0x8B43f54aE8322184E2937d77BAa549acdFAb5fBd",
+  "Campaign": "0x42627eFECfCc6d99B5ce6Acc6efdc3fcfD0085A1"
+}

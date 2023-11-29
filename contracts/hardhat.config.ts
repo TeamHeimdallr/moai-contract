@@ -15,17 +15,22 @@ if (!privateKey) {
 
 const config: HardhatUserConfig = {
   solidity: {
-    compilers: [{ version: "0.7.1" }, { version: "0.8.19" }],
+    compilers: [{ version: "0.7.1" }, { version: "0.8.19" }, { version: "0.4.18" }],
     settings: {
       optimizer: {
         enabled: true,
-        runs: 500,
+        runs: 200,
       },
     },
   },
   defaultNetwork: "porcini",
   networks: {
     hardhat: {},
+    root: {
+      allowUnlimitedContractSize: true,
+      url: "https://root.rootnet.live/archive",
+      accounts: [privateKey],
+    },
     porcini: {
       allowUnlimitedContractSize: true,
       url: "https://porcini.rootnet.app/archive",
@@ -40,3 +45,4 @@ const config: HardhatUserConfig = {
 };
 
 export default config;
+
