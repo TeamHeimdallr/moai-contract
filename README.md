@@ -3,16 +3,27 @@
 ## The Root Network
 | Contract | Mainnet | Porcini |
 |-------|-------|-------|
-| Vault |  | [0x6548DEA2fB59143215E54595D0157B79aac1335e](https://explorer.rootnet.cloud/address/0x6548DEA2fB59143215E54595D0157B79aac1335e) |
-| Authorizer |  | [0x1C6CFff78013E406A23F61bA1EeF3b1C9B2aFc25](https://explorer.rootnet.cloud/address/0x1C6CFff78013E406A23F61bA1EeF3b1C9B2aFc25) |
-| ProtocolFeesCollector |  | [0xdD613B2FC3B95504CAC4DAA1433D71Ef9C60F376](https://explorer.rootnet.cloud/address/0xdD613B2FC3B95504CAC4DAA1433D71Ef9C60F376) |
-| BalancerHelper |  | [0x0B55423e71Fe6c6552687f295BC3a41A57e30c01](https://explorer.rootnet.cloud/address/0x0B55423e71Fe6c6552687f295BC3a41A57e30c01) |
-| ProtocolFeePercentagesProvider |  | [0xA858A4A65C1535947b35988CF158b3fd7cf8537a](https://explorer.rootnet.cloud/address/0xA858A4A65C1535947b35988CF158b3fd7cf8537a) |
-| WeightedPoolFactory |  | [0x1CFE9102cA4291e358B81221757a0988a39c0A44](https://explorer.rootnet.cloud/address/0x1CFE9102cA4291e358B81221757a0988a39c0A44) |
-| ROOT |  | [0xcCcCCccC00000001000000000000000000000000](https://explorer.rootnet.cloud/address/0xcCcCCccC00000001000000000000000000000000) |
-| XRP |  | [0xCCCCcCCc00000002000000000000000000000000](https://explorer.rootnet.cloud/address/0xCCCCcCCc00000002000000000000000000000000) |
-| 50ROOT-50XRP Pool |  | [0x291af6e1b841cad6e3dcd66f2aa0790a007578ad](https://explorer.rootnet.cloud/address/0x291af6e1b841cad6e3dcd66f2aa0790a007578ad) |
-| 50ROOT-50XRP Pool ID |  | 0x291af6e1b841cad6e3dcd66f2aa0790a007578ad000200000000000000000000 |
+| Vault | [0xF5bB92ea0f82E01F890ad82AbbECE7B721fC780b](https://explorer.rootnet.live/address/0xF5bB92ea0f82E01F890ad82AbbECE7B721fC780b)  | [0x7aCeC361a66f5e551425aa7EF82B4a5fa7e26657](https://explorer.rootnet.cloud/address/0x7aCeC361a66f5e551425aa7EF82B4a5fa7e26657) |
+| Authorizer | [0x0780A78f400bad5b0349FF00D222aef8BB6BAb35](https://explorer.rootnet.live/address/0x0780A78f400bad5b0349FF00D222aef8BB6BAb35)  | [0x69F1662b8066A613D0353491AEce341162c836D2](https://explorer.rootnet.cloud/address/0x69F1662b8066A613D0353491AEce341162c836D2) |
+| ProtocolFeesCollector | [0x5f7748322dF3DCbf5009151edC18ad7BC774829C](https://explorer.rootnet.live/address/0x5f7748322dF3DCbf5009151edC18ad7BC774829C) | [0x390632b8e4E42c631CA7266d9f0e6512af70c390](https://explorer.rootnet.cloud/address/0x390632b8e4E42c631CA7266d9f0e6512af70c390) |
+| BalancerHelper | [0xEE65e4fEc04781241A801A83863E4bD5ee80f9dA](https://explorer.rootnet.live/address/0xEE65e4fEc04781241A801A83863E4bD5ee80f9dA) | [0x33b224945F0eA1745dDc01b7395c87E2B120d856](https://explorer.rootnet.cloud/address/0x33b224945F0eA1745dDc01b7395c87E2B120d856) |
+| ProtocolFeePercentagesProvider | [0x41F776D8fA56472fEe751593b313BF4103e2f586](https://explorer.rootnet.live/address/0x41F776D8fA56472fEe751593b313BF4103e2f586)  | [0x7c119F146D9D4eAAe03a3a40e2eFfBFc1be96007](https://explorer.rootnet.cloud/address/0x7c119F146D9D4eAAe03a3a40e2eFfBFc1be96007) |
+| WeightedPoolFactory | [0x004bE47F0608d9a28dB484c043bf732f4BaFCa4D](https://explorer.rootnet.live/address/0x004bE47F0608d9a28dB484c043bf732f4BaFCa4D) | [0x72EEC577455083eb3F24eBd04A5080287384dE71](https://explorer.rootnet.cloud/address/0x72EEC577455083eb3F24eBd04A5080287384dE71) |
+| PoolInfoAggregator | [0x8B43f54aE8322184E2937d77BAa549acdFAb5fBd](https://explorer.rootnet.live/address/0x8B43f54aE8322184E2937d77BAa549acdFAb5fBd) | [0xe9bcb2F5D8649b799D136BB74a81Cd2cAB29588b](https://explorer.rootnet.cloud/address/0xe9bcb2F5D8649b799D136BB74a81Cd2cAB29588b) |
+| ROOT | [0xcCcCCccC00000001000000000000000000000000](https://explorer.rootnet.live/address/0xcCcCCccC00000001000000000000000000000000)  | [0xcCcCCccC00000001000000000000000000000000](https://explorer.rootnet.cloud/address/0xcCcCCccC00000001000000000000000000000000) |
+| XRP | [0xCCCCcCCc00000002000000000000000000000000](https://explorer.rootnet.live/address/0xCCCCcCCc00000002000000000000000000000000) | [0xCCCCcCCc00000002000000000000000000000000](https://explorer.rootnet.cloud/address/0xCCCCcCCc00000002000000000000000000000000) |
+| USDC | [0xCCcCCcCC00000C64000000000000000000000000](https://explorer.rootnet.live/address/0xCCcCCcCC00000C64000000000000000000000000)  | [0xcCcCCCCc00000864000000000000000000000000](https://explorer.rootnet.cloud/address/0xcCcCCCCc00000864000000000000000000000000) |
+| ASTO | [0xCccCccCc00001064000000000000000000000000](https://explorer.rootnet.live/address/0xCccCccCc00001064000000000000000000000000)  | [0xcCcCCccC00004464000000000000000000000000](https://explorer.rootnet.cloud/address/0xcCcCCccC00004464000000000000000000000000) |
+| SYLO | [0xcCcCCCCc00000864000000000000000000000000](https://explorer.rootnet.live/address/0xcCcCCCCc00000864000000000000000000000000)  | [0xCCcCCcCC00000C64000000000000000000000000](https://explorer.rootnet.cloud/address/0xCCcCCcCC00000C64000000000000000000000000) |
+| 50ROOT-50XRP Pool | [0xcd1c4de9f374c737944ce2eef413519f9db14434](https://explorer.rootnet.live/address/0xcd1c4de9f374c737944ce2eef413519f9db14434) | [0x4177fd48e8a7b93411ca5f1acc072b8c6a7fd1a1](https://explorer.rootnet.cloud/address/0x4177fd48e8a7b93411ca5f1acc072b8c6a7fd1a1) |
+| 50ROOT-50XRP Pool ID | 0xcd1c4de9f374c737944ce2eef413519f9db14434000200000000000000000000 | 0x4177fd48e8a7b93411ca5f1acc072b8c6a7fd1a1000200000000000000000000 |
+| 50XRP-50USDC Pool | [0x061e245b664d3b76dc9326468f85b58e291bc068](https://explorer.rootnet.live/address/0x061e245b664d3b76dc9326468f85b58e291bc068) | [0x91a56b799b4fdcef0937b9ebb03e42c23e5d0037](https://explorer.rootnet.cloud/address/0x91a56b799b4fdcef0937b9ebb03e42c23e5d0037) |
+| 50XRP-50USDC Pool ID | 0x061e245b664d3b76dc9326468f85b58e291bc068000200000000000000000001 | 0x91a56b799b4fdcef0937b9ebb03e42c23e5d0037000200000000000000000001 |
+| 50XRP-50ASTO Pool | [0x70f6deb78557c71a7ee9f83756fb3136c16b3e13](https://explorer.rootnet.live/address/0x70f6deb78557c71a7ee9f83756fb3136c16b3e13) | [0xbdcc5ca425fa5752a4c0517c99cd73b7fe823124](https://explorer.rootnet.cloud/address/0xbdcc5ca425fa5752a4c0517c99cd73b7fe823124) |
+| 50XRP-50ASTO Pool ID | 0x70f6deb78557c71a7ee9f83756fb3136c16b3e13000200000000000000000002 | 0xbdcc5ca425fa5752a4c0517c99cd73b7fe823124000200000000000000000002 |
+| 50XRP-50SYLO Pool | [0x815fe003fa74ddebb0e48048e67e1f0323cfe3a5](https://explorer.rootnet.live/address/0x815fe003fa74ddebb0e48048e67e1f0323cfe3a5)  | [0x6da914c048ea27c0b7861185ea5c63bb2e3b71f4](https://explorer.rootnet.cloud/address/0x6da914c048ea27c0b7861185ea5c63bb2e3b71f4) |
+| 50XRP-50SYLO Pool ID | 0x815fe003fa74ddebb0e48048e67e1f0323cfe3a5000200000000000000000003 | 0x6da914c048ea27c0b7861185ea5c63bb2e3b71f4000200000000000000000003 |
+| Campaign | [0x42627eFECfCc6d99B5ce6Acc6efdc3fcfD0085A1](https://explorer.rootnet.live/address/0x42627eFECfCc6d99B5ce6Acc6efdc3fcfD0085A1) | [0x8adf9Ed560B30586D15232BBddD7Ba6E81ac1D30](https://explorer.rootnet.cloud/address/0x8adf9Ed560B30586D15232BBddD7Ba6E81ac1D30) |
 
 
 ## XRP EVM Sidechain
