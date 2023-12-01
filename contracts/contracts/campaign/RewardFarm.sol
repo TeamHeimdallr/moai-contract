@@ -60,6 +60,22 @@ contract RewardFarm {
         uint amountBPTOut,
         uint rewardPool
     );
+    event AprChanged(uint prevApr, uint newApr);
+    event UserLockupPeriodChanged(
+        uint prevUserLockupPeriod,
+        uint newUserLockupPeriod
+    );
+    event RewardTimeChanged(
+        uint prevRewardStartTime,
+        uint prevRewardEndTime,
+        uint newRewardStartTime,
+        uint newRewardEndTime
+    );
+    event PeriodToLockupLPSupportChanged(
+        uint prevPeriodToLockupLPSupport,
+        uint newPeriodToLockupLPSupport
+    );
+    event RewardAdminChanged(address prevRewardAdmin, address newRewardAdmin);
 
     // Farm LP tokens for rewards
     function _farm(
@@ -233,12 +249,16 @@ contract RewardFarm {
         require(newApr > 0, "RewardFarm: apr should not be 0");
         rewardToBePaid = (rewardToBePaid * newApr) / apr;
         apr = newApr;
+
+        emit AprChanged(apr, newApr);
     }
 
     function changeUserLockupPeriod(
         uint newLockupPeriod
     ) external onlyRewardAdmin {
         userLockupPeriod = newLockupPeriod;
+
+        emit UserLockupPeriodChanged(userLockupPeriod, newLockupPeriod);
     }
 
     function changeRewardTime(
@@ -251,12 +271,24 @@ contract RewardFarm {
         );
         rewardStartTime = newStartTime;
         rewardEndTime = newEndTime;
+
+        emit RewardTimeChanged(
+            rewardStartTime,
+            rewardEndTime,
+            newStartTime,
+            newEndTime
+        );
     }
 
     function changePeriodToLockupLPSupport(
         uint newPeriodToLockupLPSupport
     ) external onlyRewardAdmin {
         periodToLockupLPSupport = newPeriodToLockupLPSupport;
+
+        emit PeriodToLockupLPSupportChanged(
+            periodToLockupLPSupport,
+            newPeriodToLockupLPSupport
+        );
     }
 
     function changeRewardAdmin(address newAdmin) external onlyRewardAdmin {
@@ -265,5 +297,7 @@ contract RewardFarm {
             "Campaign: New admin must not have a farm."
         );
         rewardAdmin = newAdmin;
+
+        emit RewardAdminChanged(msg.sender, newAdmin);
     }
 }
