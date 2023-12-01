@@ -381,6 +381,13 @@ library WeightedMath {
                 amountOutWithFee = nonTaxableAmount.add(taxableAmountPlusFees);
             } else {
                 amountOutWithFee = amountsOut[i];
+                // If a token's amount out is not being charged a swap fee then it might be zero (e.g. when exiting a
+                // Pool with only a subset of tokens). In this case, `balanceRatio` will equal `FixedPoint.ONE`, and
+                // the `invariantRatio` will not change at all. We therefore skip to the next iteration, avoiding
+                // the costly `powDown` call.
+                if (amountOutWithFee == 0) {
+                    continue;
+                }
             }
 
             uint256 balanceRatio = balances[i].sub(amountOutWithFee).divDown(
