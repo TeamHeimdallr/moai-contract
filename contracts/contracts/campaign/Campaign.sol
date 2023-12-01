@@ -85,6 +85,14 @@ contract Campaign is MoaiUtils, RewardFarm {
         uint amountPairedRootForJoin,
         uint remainedRootLiquidtySupport
     );
+    event Withdraw(
+        address indexed sender,
+        uint amountBPT,
+        uint amountToBeFreed,
+        uint additionalLockedLiquidity,
+        uint lockedLiquidity,
+        uint liquiditySupport
+    );
     event Claim(address indexed claimer, uint amountRoot);
     event SupportLiquidity(
         address indexed sender,
@@ -100,6 +108,10 @@ contract Campaign is MoaiUtils, RewardFarm {
         address indexed sender,
         uint amountBPT,
         uint lockedLiquidity
+    );
+    event RootLiquidityAdminChanged(
+        address indexed prevAdmin,
+        address indexed newAdmin
     );
 
     /*
@@ -193,6 +205,15 @@ contract Campaign is MoaiUtils, RewardFarm {
             );
             liquiditySupport += (afterRootAmount - beforeRootAmount);
         }
+
+        emit Withdraw(
+            msg.sender,
+            amount,
+            amountToBeFreed,
+            additionalLockedLiquidity,
+            lockedLiquidity,
+            liquiditySupport
+        );
     }
 
     function claim() external onlyNormalUser {
@@ -226,6 +247,8 @@ contract Campaign is MoaiUtils, RewardFarm {
             "Campaign: New admin must not have a farm."
         );
         rootLiquidityAdmin = newAdmin;
+
+        emit RootLiquidityAdminChanged(msg.sender, newAdmin);
     }
 
     function takebackSupport(uint amount) external onlyRootLiquidityAdmin {
