@@ -114,6 +114,7 @@ contract ClaimTest is CampaignTestSetup {
             1e2 * 1e18,
             (campaign.rewardEndTime() + campaign.rewardStartTime()) / 2
         );
+        vm.stopPrank();
         vm.startPrank(bob);
         vm.expectRevert("Campaign: No rewards to claim");
         campaign.claim();

@@ -208,17 +208,28 @@ library WeightedMath {
             uint256 amountInWithoutFee;
 
             if (balanceRatiosWithFee[i] > invariantRatioWithFees) {
-                uint256 nonTaxableAmount = balances[i].mulDown(
-                    invariantRatioWithFees.sub(FixedPoint.ONE)
+                // invariantRatioWithFees might be less than FixedPoint.ONE in edge scenarios due to rounding error,
+                // particularly if the weights don't exactly add up to 100%.
+                uint256 nonTaxableAmount = invariantRatioWithFees >
+                    FixedPoint.ONE
+                    ? balances[i].mulDown(
+                        invariantRatioWithFees - FixedPoint.ONE
+                    )
+                    : 0;
+                uint256 swapFee = amountsIn[i].sub(nonTaxableAmount).mulUp(
+                    swapFeePercentage
                 );
-                uint256 taxableAmount = amountsIn[i].sub(nonTaxableAmount);
-                uint256 swapFee = taxableAmount.mulUp(swapFeePercentage);
-
-                amountInWithoutFee = nonTaxableAmount.add(
-                    taxableAmount.sub(swapFee)
-                );
+                amountInWithoutFee = amountsIn[i].sub(swapFee);
             } else {
                 amountInWithoutFee = amountsIn[i];
+
+                // If a token's amount in is not being charged a swap fee then it might be zero (e.g. when joining a
+                // Pool with only a subset of tokens). In this case, `balanceRatio` will equal `FixedPoint.ONE`, and
+                // the `invariantRatio` will not change at all. We therefore skip to the next iteration, avoiding
+                // the costly `powDown` call.
+                if (amountInWithoutFee == 0) {
+                    continue;
+                }
             }
 
             uint256 balanceRatio = balances[i].add(amountInWithoutFee).divDown(
