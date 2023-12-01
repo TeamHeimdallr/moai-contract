@@ -13,5 +13,5 @@ forge create \
   --legacy \
   --verify \
   --verifier sourcify contracts/weighted-pool-v4/v2-interfaces/contracts/vault/ProtocolFeePercentagesProvider.sol/:ProtocolFeePercentagesProvider \
-  --constructor-args 0xF5bB92ea0f82E01F890ad82AbbECE7B721fC780b 500000000000000000 500000000000000000
+  --constructor-args 0x1D6B655289328a1083EcD70170692002dBED1aBD 500000000000000000 500000000000000000
 
