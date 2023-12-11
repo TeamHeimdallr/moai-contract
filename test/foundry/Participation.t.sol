@@ -380,4 +380,64 @@ contract ParticipateTest is CampaignTestSetup {
             bytes("Campaign: Admins can't use functions for normal users.")
         );
     }
+
+    function test_ParticipateOutOfSpotPriceRange1() public {
+        uint amountXrpIn = 1 * 1e18;
+        uint amountRootIn = 0;
+        uint campaignStartTime = campaign.rewardStartTime();
+        xrp.faucet(nativeLpToken, 6e6 * 1e18); // 6%
+
+        _participate(
+            alice,
+            amountXrpIn,
+            amountRootIn,
+            campaignStartTime + 1,
+            bytes("Campaign: Spot price is not in the range")
+        );
+    }
+
+    function test_ParticipateOutOfSpotPriceRange2() public {
+        uint amountXrpIn = 1 * 1e18;
+        uint amountRootIn = 0;
+        uint campaignStartTime = campaign.rewardStartTime();
+        root.faucet(nativeLpToken, 6e6 * 1e18); // 6%
+
+        _participate(
+            alice,
+            amountXrpIn,
+            amountRootIn,
+            campaignStartTime + 1,
+            bytes("Campaign: Spot price is not in the range")
+        );
+    }
+
+    function test_ParticipateInSpotPriceRange1() public {
+        uint amountXrpIn = 1 * 1e18;
+        uint amountRootIn = 0;
+        uint campaignStartTime = campaign.rewardStartTime();
+        xrp.faucet(nativeLpToken, 4e6 * 1e18); // 4%
+
+        _participate(
+            alice,
+            amountXrpIn,
+            amountRootIn,
+            campaignStartTime + 1,
+            ""
+        );
+    }
+
+    function test_ParticipateInSpotPriceRange2() public {
+        uint amountXrpIn = 1 * 1e18;
+        uint amountRootIn = 0;
+        uint campaignStartTime = campaign.rewardStartTime();
+        root.faucet(nativeLpToken, 4e6 * 1e18); // 4%
+
+        _participate(
+            alice,
+            amountXrpIn,
+            amountRootIn,
+            campaignStartTime + 1,
+            ""
+        );
+    }
 }

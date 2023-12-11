@@ -166,19 +166,17 @@ contract Campaign is MoaiUtils, RewardFarm {
             moaiPoolId
         );
 
-        uint moaiPoolSpotPrice = (1 * poolTokenBalances[rootIndex]) /
+        uint moaiPoolSpotPrice = (1e4 * poolTokenBalances[rootIndex]) /
             (poolTokenBalances[xrpIndex]);
 
-        uint nativePoolSpotPrice = (1 *
+        uint nativePoolSpotPrice = (1e4 *
             IERC20(rootTokenAddr).balanceOf(nativeXrpRootLpTokenAddress)) /
             (IERC20(xrpTokenAddr).balanceOf(nativeXrpRootLpTokenAddress));
 
         if (
-            moaiPoolSpotPrice +
-                ((moaiPoolSpotPrice * spotPriceLimit) / 100000) <
+            moaiPoolSpotPrice + ((moaiPoolSpotPrice * spotPriceLimit) / 1e5) <
             nativePoolSpotPrice ||
-            moaiPoolSpotPrice -
-                ((moaiPoolSpotPrice * spotPriceLimit) / 100000) >
+            moaiPoolSpotPrice - ((moaiPoolSpotPrice * spotPriceLimit) / 1e5) >
             nativePoolSpotPrice
         ) {
             revert("Campaign: Spot price is not in the range");
