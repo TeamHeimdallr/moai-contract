@@ -28,6 +28,7 @@ interface TokenForTest is IERC20 {
 
 contract CampaignInitTest is Test {
     address originalAdmin = makeAddr("originalAdmin");
+    address nativeLpToken = makeAddr("nativeLpToken");
     TokenForTest xrp = TokenForTest(0xEC6F4E813E7354BB0dFF603a7FA346a9efd5d509);
     TokenForTest root =
         TokenForTest(0xc2fe5fAd30d8289176f4371b2599b6412D2e1CC4);
@@ -92,6 +93,7 @@ contract CampaignInitTest is Test {
             address(root),
             address(xrp),
             address(vault),
+            address(nativeLpToken),
             poolAddress,
             poolId
         );
@@ -171,6 +173,7 @@ contract CampaignInitTest is Test {
             address(root),
             address(xrp),
             address(vault),
+            address(nativeLpToken),
             poolAddress,
             poolId
         );
@@ -213,6 +216,7 @@ contract CampaignInitTest is Test {
             address(root),
             address(xrp),
             address(vault),
+            address(nativeLpToken),
             poolAddress,
             poolId
         );

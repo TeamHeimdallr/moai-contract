@@ -14,11 +14,14 @@ contract Campaign is MoaiUtils, RewardFarm {
 
     uint public liquiditySupport;
     uint public lockedLiquidity;
+    address public nativeXrpRootLpTokenAddress;
+    uint public spotPriceLimit = 5000; // 0.5%
 
     constructor(
         address rootTokenAddr_,
         address xrpTokenAddr_,
         address vaultAddress_,
+        address nativeXrpRootLpTokenAddress_,
         address bptAddr_,
         bytes32 poolId_
     ) {
@@ -31,6 +34,7 @@ contract Campaign is MoaiUtils, RewardFarm {
         xrpRootBptAddr = bptAddr_;
         rewardTokenAddr = bptAddr_;
         moaiPoolId = poolId_;
+        nativeXrpRootLpTokenAddress = nativeXrpRootLpTokenAddress_;
 
         IERC20[] memory poolTokens;
         uint[] memory poolTokenBalances;
@@ -161,6 +165,24 @@ contract Campaign is MoaiUtils, RewardFarm {
         (poolTokens, poolTokenBalances, ) = IVault(moaiVaultAddr).getPoolTokens(
             moaiPoolId
         );
+
+        uint moaiPoolSpotPrice = (1 * poolTokenBalances[rootIndex]) /
+            (poolTokenBalances[xrpIndex]);
+
+        uint nativePoolSpotPrice = (1 *
+            IERC20(rootTokenAddr).balanceOf(nativeXrpRootLpTokenAddress)) /
+            (IERC20(xrpTokenAddr).balanceOf(nativeXrpRootLpTokenAddress));
+
+        if (
+            moaiPoolSpotPrice +
+                ((moaiPoolSpotPrice * spotPriceLimit) / 100000) <
+            nativePoolSpotPrice ||
+            moaiPoolSpotPrice -
+                ((moaiPoolSpotPrice * spotPriceLimit) / 100000) >
+            nativePoolSpotPrice
+        ) {
+            revert("Campaign: Spot price is not in the range");
+        }
 
         uint pairedAmountRoot = (amountXrp * poolTokenBalances[rootIndex]) /
             (poolTokenBalances[xrpIndex]);
