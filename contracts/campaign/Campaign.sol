@@ -15,7 +15,7 @@ contract Campaign is MoaiUtils, RewardFarm {
     uint public liquiditySupport;
     uint public lockedLiquidity;
     address public nativeXrpRootLpTokenAddress;
-    uint public spotPriceLimit = 5000; // 0.5%
+    uint public spotPriceLimit = 5000; // 5%
 
     constructor(
         address rootTokenAddr_,
@@ -174,10 +174,12 @@ contract Campaign is MoaiUtils, RewardFarm {
             (IERC20(xrpTokenAddr).balanceOf(nativeXrpRootLpTokenAddress));
 
         if (
-            moaiPoolSpotPrice + ((moaiPoolSpotPrice * spotPriceLimit) / 1e5) <
-            nativePoolSpotPrice ||
-            moaiPoolSpotPrice - ((moaiPoolSpotPrice * spotPriceLimit) / 1e5) >
-            nativePoolSpotPrice
+            nativePoolSpotPrice +
+                ((nativePoolSpotPrice * spotPriceLimit) / 1e5) <
+            moaiPoolSpotPrice ||
+            nativePoolSpotPrice -
+                ((nativePoolSpotPrice * spotPriceLimit) / 1e5) >
+            moaiPoolSpotPrice
         ) {
             revert("Campaign: Spot price is not in the range");
         }
