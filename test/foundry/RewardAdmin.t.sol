@@ -197,15 +197,11 @@ contract RewardAdmin is CampaignTestSetup {
 
         vm.warp(block.timestamp + originalPeriodToLockupLPSupport / 2 + 1);
 
-        (
-            Campaign.Farm memory farmSimulated,
-            ,
-            ,
-            uint additionalLockedLiquiditySimulated
-        ) = campaign.simulateAccrue(alice);
+        (Campaign.Farm memory farmSimulated, , ) = campaign.simulateAccrue(
+            alice
+        );
 
         assertEq(farmSimulated.amountPairedBPTLocked, 0);
-        assertEq(additionalLockedLiquiditySimulated, 0);
 
         vm.startPrank(rewardAdmin);
         campaign.changePeriodToLockupLPSupport(
@@ -217,19 +213,11 @@ contract RewardAdmin is CampaignTestSetup {
             originalPeriodToLockupLPSupport / 2
         );
 
-        (
-            Campaign.Farm memory farmSimulatedAfterUpdate,
-            ,
-            ,
-            uint additionalLockedLiquiditySimulatedAfterUpdate
-        ) = campaign.simulateAccrue(alice);
+        (Campaign.Farm memory farmSimulatedAfterUpdate, , ) = campaign
+            .simulateAccrue(alice);
         assertEq(
             farmSimulatedAfterUpdate.amountFarmed,
             farmSimulatedAfterUpdate.amountPairedBPTLocked
-        );
-        assertEq(
-            farmSimulatedAfterUpdate.amountFarmed,
-            additionalLockedLiquiditySimulatedAfterUpdate
         );
     }
 }

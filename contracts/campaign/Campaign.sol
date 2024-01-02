@@ -92,8 +92,7 @@ contract Campaign is MoaiUtils, RewardFarm {
     event Withdraw(
         address indexed sender,
         uint amountBPT,
-        uint amountToBeFreed,
-        uint additionalLockedLiquidity,
+        uint freedRootAmount,
         uint lockedLiquidity,
         uint liquiditySupport
     );
@@ -195,7 +194,7 @@ contract Campaign is MoaiUtils, RewardFarm {
         uint amountBPT = _joinPool(pairedAmountRoot, amountXrp);
         liquiditySupport -= pairedAmountRoot;
 
-        lockedLiquidity += _farm(amountBPT / 2);
+        _farm(amountBPT / 2);
 
         emit Participate(
             msg.sender,
@@ -208,46 +207,54 @@ contract Campaign is MoaiUtils, RewardFarm {
     }
 
     function withdraw(uint amount) external onlyNormalUser {
-        (uint amountToBeFreed, uint additionalLockedLiquidity) = _unfarm(
-            amount
+        uint toBeLockedRatio = _unfarm(amount);
+
+        uint beforeRootAmount = IERC20(rootTokenAddr).balanceOf(address(this));
+        uint beforeXrpAmount = IERC20(xrpTokenAddr).balanceOf(address(this));
+        _exitPool(amount + amount, address(this));
+        uint afterRootAmount = IERC20(rootTokenAddr).balanceOf(address(this));
+        uint afterXrpAmount = IERC20(xrpTokenAddr).balanceOf(address(this));
+
+        // transfer xrp to user
+        IERC20(xrpTokenAddr).transfer(
+            msg.sender,
+            afterXrpAmount - beforeXrpAmount
         );
-        lockedLiquidity += additionalLockedLiquidity;
 
-        // user
-        _exitPool(amount, xrpIndex, msg.sender);
+        uint toBeLockedRootAmount = ((afterRootAmount - beforeRootAmount) *
+            toBeLockedRatio) / 1e6;
 
-        // freed supported root
-        if (amountToBeFreed > 0) {
-            uint beforeRootAmount = IERC20(rootTokenAddr).balanceOf(
+        uint freedRootAmount = (afterRootAmount - beforeRootAmount) -
+            toBeLockedRootAmount;
+
+        liquiditySupport += freedRootAmount;
+
+        if (toBeLockedRootAmount > 0) {
+            uint beforeBptAmount = IERC20(xrpRootBptAddr).balanceOf(
                 address(this)
             );
-            _exitPool(amountToBeFreed, rootIndex, address(this));
-            uint afterRootAmount = IERC20(rootTokenAddr).balanceOf(
+            _joinPool(toBeLockedRootAmount, 0);
+            uint afterBptAmount = IERC20(xrpRootBptAddr).balanceOf(
                 address(this)
             );
-            liquiditySupport += (afterRootAmount - beforeRootAmount);
+            lockedLiquidity += (afterBptAmount - beforeBptAmount);
         }
 
         emit Withdraw(
             msg.sender,
             amount,
-            amountToBeFreed,
-            additionalLockedLiquidity,
+            freedRootAmount,
             lockedLiquidity,
             liquiditySupport
         );
     }
 
     function claim() external onlyNormalUser {
-        (
-            uint rewardAmount,
-            uint additionalLockedLiquidity
-        ) = _returnAndClearRewardAmount();
+        uint rewardAmount = _returnAndClearRewardAmount();
         require(rewardAmount > 0, "Campaign: No rewards to claim");
-        lockedLiquidity += additionalLockedLiquidity;
 
         uint beforeRootAmount = IERC20(rootTokenAddr).balanceOf(msg.sender);
-        _exitPool(rewardAmount, rootIndex, msg.sender);
+        _exitPoolSingle(rewardAmount, rootIndex, msg.sender);
         uint afterRootAmount = IERC20(rootTokenAddr).balanceOf(msg.sender);
 
         emit Claim(msg.sender, afterRootAmount - beforeRootAmount);

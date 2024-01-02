@@ -25,7 +25,8 @@ contract MoaiUtils {
         uint amountRoot,
         uint amountBPT
     );
-    event ExitPool(
+    event ExitPool(address indexed recipient, uint amountBPT);
+    event ExitPoolSingle(
         address indexed recipient,
         uint amountBPT,
         uint exitAssetIndex
@@ -100,7 +101,38 @@ contract MoaiUtils {
         emit JoinPool(msg.sender, amountXrp, amountRoot, joinedBPT);
     }
 
-    function _exitPool(
+    function _exitPool(uint exitBPTAmount, address recipient) internal {
+        IAsset[] memory exitAsset = new IAsset[](2);
+        exitAsset[rootIndex] = IAsset(rootTokenAddr);
+        exitAsset[xrpIndex] = IAsset(xrpTokenAddr);
+
+        uint[] memory exitAmountsOut = new uint[](2);
+        exitAmountsOut[rootIndex] = 0;
+        exitAmountsOut[xrpIndex] = 0;
+
+        bytes memory userData = abi.encode(
+            WeightedPoolUserData.ExitKind.EXACT_BPT_IN_FOR_TOKENS_OUT,
+            exitBPTAmount
+        );
+
+        IVault.ExitPoolRequest memory request = IVault.ExitPoolRequest({
+            assets: exitAsset,
+            minAmountsOut: exitAmountsOut,
+            userData: userData,
+            toInternalBalance: false
+        });
+
+        IVault(moaiVaultAddr).exitPool(
+            moaiPoolId,
+            address(this),
+            payable(recipient),
+            request
+        );
+
+        emit ExitPool(recipient, exitBPTAmount);
+    }
+
+    function _exitPoolSingle(
         uint exitBPTAmount,
         uint exitAssetIndex,
         address recipient
@@ -133,6 +165,6 @@ contract MoaiUtils {
             request
         );
 
-        emit ExitPool(recipient, exitBPTAmount, exitAssetIndex);
+        emit ExitPoolSingle(recipient, exitBPTAmount, exitAssetIndex);
     }
 }
