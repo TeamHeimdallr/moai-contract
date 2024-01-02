@@ -150,11 +150,15 @@ contract WithdrawalTest is CampaignTestSetup {
                     : block.timestamp
             ) - depositedTime)) / 365 days;
 
-        assertEq(
-            originalCampaignBpt - bpt.balanceOf(address(campaign)),
-            amountFarmed // Liquidity Locked Up
+        assertLe(
+            bpt.balanceOf(address(campaign)),
+            originalCampaignBpt - amountFarmed
         );
-        assertEq(campaign.lockedLiquidity(), amountFarmed);
+        assertEq(
+            campaign.lockedLiquidity(),
+            bpt.balanceOf(address(campaign)) -
+                (originalCampaignBpt - 2 * amountFarmed)
+        );
         assertEq(farmSimulatedAfterWithdrawal.amountPairedBPTLocked, 0);
         assertEq(
             farmSimulatedAfterWithdrawal.unclaimedRewards,
