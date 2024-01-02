@@ -5,13 +5,13 @@ import "@balancer-labs/v2-interfaces/contracts/vault/IVault.sol";
 
 contract RewardFarm {
     // Configurations
-    uint public apr = 70000; // 100% = 1000000, 1e6
+    uint public apr = 100000; // 100% = 1000000, 1e6
     // User can't withdraw its deposit before 'userLockupPeriod' has passed since its last deposit
-    uint public userLockupPeriod = 12 hours;
+    uint public userLockupPeriod = 24 hours;
     // If a deposit is locked up more than 'periodToLockupLPSupport',
     //  the supported liquidity by Futureverse becomes locked up for 2 years
     //  The locked up BPT isn't freed when the user withdraw from this campaign
-    uint public periodToLockupLPSupport = 1 weeks;
+    uint public periodToLockupLPSupport = 30 days;
     uint public rewardStartTime = type(uint256).max - 1;
     uint public rewardEndTime = type(uint256).max;
 
@@ -48,7 +48,8 @@ contract RewardFarm {
         uint amountFarmedBPTOut,
         uint amountFarmedBPT,
         uint amountPairedBPTLocked,
-        uint totalRewardToBePaid
+        uint totalRewardToBePaid,
+        uint toBeLockedRatio
     );
     event ProvideRewards(
         address indexed sender,
@@ -78,16 +79,14 @@ contract RewardFarm {
     event RewardAdminChanged(address prevRewardAdmin, address newRewardAdmin);
 
     // Farm LP tokens for rewards
-    function _farm(
-        uint amount
-    ) internal returns (uint additionalLockedLiquidity) {
+    function _farm(uint amount) internal {
         require(
             block.timestamp >= rewardStartTime &&
                 block.timestamp < rewardEndTime,
             "Campaign: Not started or already ended"
         );
         Farm storage farm = farms[msg.sender];
-        additionalLockedLiquidity = _accrue(msg.sender);
+        _accrue(msg.sender);
         if (farm.amountFarmed == farm.amountPairedBPTLocked) {
             farm.depositedTime = block.timestamp;
         } else {
@@ -112,13 +111,11 @@ contract RewardFarm {
         );
     }
 
-    // Campaign part should repay 'amountToBeFreed' of BPT and give back $ROOT to Futureverse's LP support pool
-    function _unfarm(
-        uint amount
-    ) internal returns (uint amountToBeFreed, uint additionalLockedLiquidity) {
+    // Campaign part should lock 'toBeLockedRatio' of BPT as BPT and remain $ROOT is freed
+    function _unfarm(uint amount) internal returns (uint toBeLockedRatio) {
         require(amount != 0, "Campaign: Unfarmed amount should not be zero");
         Farm storage farm = farms[msg.sender];
-        additionalLockedLiquidity = _accrue(msg.sender);
+        _accrue(msg.sender);
         require(
             farm.amountFarmed >= amount,
             "Campaign: Not able to withdraw more than deposited"
@@ -127,14 +124,17 @@ contract RewardFarm {
             farm.depositedTime + userLockupPeriod < block.timestamp,
             "Campaign: Lockup period"
         );
+
+        toBeLockedRatio = farm.amountPairedBPTLocked >= farm.amountFarmed
+            ? 1e6
+            : (1e6 * farm.amountPairedBPTLocked) / farm.amountFarmed;
+
         farm.amountFarmed -= amount;
-        if (farm.amountPairedBPTLocked < amount) {
-            amountToBeFreed = amount - farm.amountPairedBPTLocked;
-            farm.amountPairedBPTLocked = 0;
-        } else {
-            amountToBeFreed = 0;
-            farm.amountPairedBPTLocked -= amount;
-        }
+
+        farm.amountPairedBPTLocked =
+            (farm.amountFarmed * toBeLockedRatio) /
+            1e6;
+
         rewardToBePaid -=
             (((amount * apr) / 1e6) * (rewardEndTime - block.timestamp)) /
             365 days;
@@ -144,30 +144,25 @@ contract RewardFarm {
             amount,
             farm.amountFarmed,
             farm.amountPairedBPTLocked,
-            rewardToBePaid
+            rewardToBePaid,
+            toBeLockedRatio
         );
     }
 
-    function _returnAndClearRewardAmount()
-        internal
-        returns (uint amount, uint additionalLockedLiquidity)
-    {
+    function _returnAndClearRewardAmount() internal returns (uint amount) {
         Farm storage farm = farms[msg.sender];
-        additionalLockedLiquidity = _accrue(msg.sender);
+        _accrue(msg.sender);
         amount = farm.unclaimedRewards;
         farm.unclaimedRewards = 0;
     }
 
-    function _accrue(
-        address account
-    ) internal returns (uint additionalLockedLiquidity) {
+    function _accrue(address account) internal {
         Farm storage farm = farms[account];
 
         (
             Farm memory farmSimulated,
             uint rewardToBePaidSimulated,
-            uint rewardPoolSimulated,
-            uint additionalLockedLiquiditySimulated
+            uint rewardPoolSimulated
         ) = simulateAccrue(account);
 
         farm.amountPairedBPTLocked = farmSimulated.amountPairedBPTLocked;
@@ -176,7 +171,6 @@ contract RewardFarm {
 
         rewardToBePaid = rewardToBePaidSimulated;
         rewardPool = rewardPoolSimulated;
-        additionalLockedLiquidity = additionalLockedLiquiditySimulated;
     }
 
     function simulateAccrue(
@@ -187,8 +181,7 @@ contract RewardFarm {
         returns (
             Farm memory farmSimulated,
             uint rewardToBePaidSimulated,
-            uint rewardPoolSimulated,
-            uint additionalLockedLiquiditySimulated
+            uint rewardPoolSimulated
         )
     {
         farmSimulated = farms[account];
@@ -219,8 +212,6 @@ contract RewardFarm {
             block.timestamp - farmSimulated.depositedTime >
             periodToLockupLPSupport
         ) {
-            additionalLockedLiquiditySimulated = (farmSimulated.amountFarmed -
-                farmSimulated.amountPairedBPTLocked);
             farmSimulated.amountPairedBPTLocked = farmSimulated.amountFarmed;
         }
     }
