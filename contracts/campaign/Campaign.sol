@@ -208,7 +208,6 @@ contract Campaign is MoaiUtils, RewardFarm {
 
     function withdraw(uint amount) external onlyNormalUser {
         uint toBeLockedRatio = _unfarm(amount);
-        Farm storage farm = farms[msg.sender];
 
         uint beforeRootAmount = IERC20(rootTokenAddr).balanceOf(address(this));
         uint beforeXrpAmount = IERC20(xrpTokenAddr).balanceOf(address(this));
