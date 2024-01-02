@@ -45,7 +45,7 @@ contract ClaimTest is CampaignTestSetup {
         assertEq(lastRewardTime, block.timestamp);
 
         vm.warp(campaign.rewardEndTime());
-        (Campaign.Farm memory farmSimulated, , , ) = campaign.simulateAccrue(
+        (Campaign.Farm memory farmSimulated, , ) = campaign.simulateAccrue(
             alice
         );
 
