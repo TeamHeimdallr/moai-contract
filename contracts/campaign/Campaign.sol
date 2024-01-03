@@ -91,7 +91,9 @@ contract Campaign is MoaiUtils, RewardFarm {
     );
     event Withdraw(
         address indexed sender,
-        uint amountBPT,
+        uint amountBPTRequested,
+        uint amountXrpOut,
+        uint amountRootInitialOut,
         uint freedRootAmount,
         uint lockedLiquidity,
         uint liquiditySupport
@@ -243,6 +245,8 @@ contract Campaign is MoaiUtils, RewardFarm {
         emit Withdraw(
             msg.sender,
             amount,
+            afterXrpAmount - beforeXrpAmount,
+            afterRootAmount - beforeRootAmount,
             freedRootAmount,
             lockedLiquidity,
             liquiditySupport
