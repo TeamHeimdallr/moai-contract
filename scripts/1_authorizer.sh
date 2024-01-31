@@ -12,5 +12,5 @@ forge create \
   --optimizer-runs 9999 \
   --legacy \
   --verify \
-  --verifier sourcify contracts/vault/Authorizer.sol/:Authorizer \
+  --verifier sourcify contracts/dex/vault/Authorizer.sol/:Authorizer \
   --constructor-args 0xCfE5A4Bd0421e507cB5B345cE152Cb593396f965

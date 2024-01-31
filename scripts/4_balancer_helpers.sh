@@ -12,6 +12,6 @@ forge create \
   --optimizer-runs 9999 \
   --legacy \
   --verify \
-  --verifier sourcify contracts/lib/helpers/BalancerHelpers.sol/:BalancerHelpers \
+  --verifier sourcify contracts/dex/lib/helpers/BalancerHelpers.sol/:BalancerHelpers \
   --constructor-args 0x1D6B655289328a1083EcD70170692002dBED1aBD
 
