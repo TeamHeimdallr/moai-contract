@@ -12,4 +12,4 @@ forge create \
   --optimizer-runs 9999 \
   --legacy \
   --verify \
-  --verifier sourcify contracts/WXRP9.sol/:WXRP9
+  --verifier sourcify contracts/dex/WXRP9.sol/:WXRP9
