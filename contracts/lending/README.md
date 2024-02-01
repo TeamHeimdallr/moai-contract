@@ -1,1 +1,0 @@
-### MOAI Lending Contract
