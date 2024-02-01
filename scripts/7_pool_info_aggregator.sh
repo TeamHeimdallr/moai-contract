@@ -12,6 +12,6 @@ forge create \
   --optimizer-runs 999 \
   --legacy \
   --verify \
-  --verifier sourcify contracts/PoolInfoAggregator.sol/:PoolInfoAggregator \
+  --verifier sourcify contracts/dex/PoolInfoAggregator.sol/:PoolInfoAggregator \
   --constructor-args 0x1D6B655289328a1083EcD70170692002dBED1aBD
 

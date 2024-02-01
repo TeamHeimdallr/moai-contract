@@ -1,0 +1,3 @@
+[submodule "contracts/lending"]
+	path = contracts/lending
+	url = https://github.com/teamheimdallr/moai-lending-contract
