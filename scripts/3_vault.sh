@@ -6,7 +6,7 @@ if [ "$1" != "--rpc" ]; then
 fi
 
 forge create \
-  --rpc-url "$2", \
+  --rpc-url "$2" \
   --private-key $CALLER_PRIVATE_KEY \
   --optimize \
   --optimizer-runs 860 \
