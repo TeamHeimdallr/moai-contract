@@ -7,5 +7,6 @@
   "ProtocolFeePercentagesProvider": "0xCf39Dd95da35064c0C62b2e5dcCC15e7ACBc4CEb",
   "WeightedPoolFactory": "0x4598d12F50B6A7EA3340204FD1cEd19DA24c5d67",
   "PoolInfoAggregator": "0x310EC778d24AF40Ce4F3d8d8e0c4cb12ABF56202",
-  "Campaign": "0x20E0fa7A8a1C22De73601cd6731Bb59c13B04916"
+  "Campaign": "0x20E0fa7A8a1C22De73601cd6731Bb59c13B04916",
+  "ComposableStablePoolFactory": "0x4c8441e2608eEEF17CF2db0C9f71BFD1F75Ed169"
 }
