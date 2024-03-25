@@ -13,16 +13,27 @@ forge create \
   --legacy \
   --verify \
   --verifier sourcify contracts/dex/MoaiLpFarm.sol/:MoaiLpFarm \
-  --constructor-args 0xcCcCCccC00000001000000000000000000000000 1466049 11670258
+  --constructor-args 0xcCcCCccC00000001000000000000000000000000 771604 11699610
 # (IERC20 _erc20, uint256 _rewardPerBlock, uint256 _startBlock)
 
+# Mainnet start for ROOT-ETH, ROOT-USDC pool: 11699610
 # 2 months = 60 days = 5184000 seconds = 1296000 blocks (assuming 4s per block)
-# For ETH/ROOT Pool, Total Rewards = about $200K ~= 1,900,000 ROOT
-# => 1466049 per blocks (1.466049 ROOT)
-# For ROOT/USDC Pool, Total Rewards = about $100K ~= 950,000 ROOT
-# => 733024 per blocks (0.733024 ROOT)
-# For USDT/USDC Pool, Total Rewards = about $50K ~= 475,000 ROOT
-# => 366512 per blocks (0.366512 ROOT)
+# For ETH/ROOT Pool, Total Rewards = 2,000,000 ROOT (~= $200K)
+# => 1543209 per blocks (1.543209 ROOT)
+# For ROOT/USDC Pool, Total Rewards = 1,000,000 ROOT (~= $100K)
+# => 771604 per blocks (0.771604 ROOT)
+# For USDT/USDC Pool, Total Rewards = 500,000 ROOT (~= $50K)
+# => 385802 per blocks (0.385802 ROOT)
+
+# Porcini Test start block: 11732657
+# 2 months = 60 days = 5184000 seconds = 1296000 blocks (assuming 4s per block)
+# For ETH/ROOT Pool, Total Rewards = 200 ROOT
+# => 154 per blocks (0.000154 ROOT)
+# For ROOT/USDC Pool, Total Rewards = 100 ROOT
+# => 77 per blocks (0.000077 ROOT)
+# For USDT/USDC Pool, Total Rewards = 50 ROOT
+# => 38 per blocks (0.000038 ROOT)
+
 
 
 # porcini block number ~= 11669752 for 24/03/22 08H UTC
