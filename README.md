@@ -38,6 +38,7 @@
 | USDC-USDT Pool ID           | 0x1e5fb7be66111b18c41e4c3f3232166afe95daae000000000000000000000006                                                             | 0xb7494cec27dc2a4a94f1808bc7af266958739d66000000000000000000000006                                                              |
 | LP Farm (USDC-USDT)              | [0x7Ce08a9aA144c18e7aC6359067Fc540BDC129b9F](https://rootscan.io/address/0x7Ce08a9aA144c18e7aC6359067Fc540BDC129b9F) | [0x04E6c8eAF426CD4369BA55603509AC299805fb64](https://porcini.rootscan.io/address/0x04E6c8eAF426CD4369BA55603509AC299805fb64) |
 | Campaign                       | [0xA9e9c94A7D54694FDB44739aD93D493e17a16d17](https://rootscan.io/address/0xA9e9c94A7D54694FDB44739aD93D493e17a16d17) | [0x20E0fa7A8a1C22De73601cd6731Bb59c13B04916](https://porcini.rootscan.io/address/0x20E0fa7A8a1C22De73601cd6731Bb59c13B04916) |
+| CampaignReward                       | [0xB61b7Af7e9a188BD162f5cE1aFD939dde05e2826](https://rootscan.io/address/0xB61b7Af7e9a188BD162f5cE1aFD939dde05e2826) | [0x6ca22266d295AB1019C38d200F4912806C8b22a8](https://porcini.rootscan.io/address/0x6ca22266d295AB1019C38d200F4912806C8b22a8) |
 
 ## XRP EVM Sidechain
 
